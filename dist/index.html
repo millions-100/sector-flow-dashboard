@@ -6,11 +6,12 @@
   <meta name="theme-color" content="#07111f">
   <title>섹터 플로우 — 오늘의 시장 주도주</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2307111f'/%3E%3Cpath d='M6 22l6-6 4 3 9-10' fill='none' stroke='%23ff5c72' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=20261005-1">
+  <link rel="stylesheet" href="styles.css?v=20261005-2">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#"><span class="brand-mark">↗</span><span>섹터 플로우</span><small>SECTOR FLOW</small></a>
+    <div class="market-switch" role="tablist" aria-label="분석 시장 선택"><button class="active" type="button" data-market="kr" role="tab" aria-selected="true">한국</button><button type="button" data-market="us" role="tab" aria-selected="false">미국</button></div>
     <nav class="nav"><button class="nav-btn active">대시보드</button><button class="nav-btn" id="timelineJump">타임라인</button><button class="nav-btn" id="aboutBtn">데이터 안내</button></nav>
     <div class="market-state"><span class="pulse"></span><span id="liveStatus">최신 데이터 확인 중</span><b id="liveDate">—</b><button id="refreshBtn" type="button" aria-label="최신 데이터 새로고침" title="최신 데이터 새로고침">↻</button></div>
   </header>
@@ -39,12 +40,12 @@
 
     <section class="summary-grid">
       <article class="kospi-card">
-        <div class="card-head"><span>KOSPI</span><span class="date-label" id="summaryDate"></span></div>
+        <div class="card-head"><span id="benchmarkLabel">KOSPI</span><span class="date-label" id="summaryDate"></span></div>
         <div class="kospi-value" id="kospiValue"></div>
         <p id="kospiDesc"></p>
         <svg viewBox="0 0 420 96" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4c8dff" stop-opacity=".35"/><stop offset="1" stop-color="#4c8dff" stop-opacity="0"/></linearGradient></defs><path d="M0 20 C35 26 53 11 82 30 S125 43 151 36 S191 50 219 44 S266 64 296 55 S343 84 420 76 L420 96 L0 96Z" fill="url(#fade)"/><path d="M0 20 C35 26 53 11 82 30 S125 43 151 36 S191 50 219 44 S266 64 296 55 S343 84 420 76" fill="none" stroke="#4c8dff" stroke-width="3"/></svg>
       </article>
-      <article class="signal-card"><div class="card-head"><span>역행 시그널</span><span class="signal-badge">SECTOR</span></div><strong id="sectorCount"></strong><p>KOSPI 하락에도 플러스 수익률을 기록한 섹터</p><div class="mini-stats"><span>최고 섹터 <b id="bestSector"></b></span><span>평균 수익률 <b id="averageReturn"></b></span></div></article>
+      <article class="signal-card"><div class="card-head"><span>역행 시그널</span><span class="signal-badge">SECTOR</span></div><strong id="sectorCount"></strong><p id="signalCopy">KOSPI 하락에도 플러스 수익률을 기록한 섹터</p><div class="mini-stats"><span>최고 섹터 <b id="bestSector"></b></span><span>종합 점수 <b id="averageReturn"></b></span></div></article>
     </section>
 
     <section class="content-grid">
@@ -66,7 +67,7 @@
     </section>
 
     <section class="timeline-panel panel" id="timeline">
-      <div class="section-head"><div><p class="eyebrow">MARKET TIMELINE</p><h2>하락일 히트맵</h2></div><div class="legend"><span><i class="down"></i>KOSPI 하락</span><span><i class="up"></i>섹터 상승 강도</span></div></div>
+      <div class="section-head"><div><p class="eyebrow">MARKET TIMELINE</p><h2>하락일 히트맵</h2></div><div class="legend"><span><i class="down"></i><b id="timelineBenchmarkLabel">KOSPI</b> 하락</span><span><i class="up"></i>섹터 상승 강도</span></div></div>
       <div class="heatmap" id="heatmap"></div>
       <p class="heatmap-help">날짜를 선택하면 해당 거래일 분석으로 이동합니다. 상승일은 흐리게 표시됩니다.</p>
     </section>
@@ -78,8 +79,8 @@
     <p class="eyebrow">SECTOR DEEP DIVE</p><h2 id="drawerTitle"></h2><div class="drawer-return" id="drawerReturn"></div>
     <p class="drawer-desc" id="drawerDesc"></p><div id="drawerStocks" class="drawer-stocks"></div>
   </aside>
-  <div class="modal-backdrop" id="modal"><div class="modal"><button id="modalClose" aria-label="닫기">×</button><p class="eyebrow">DATA GUIDE</p><h2>열 때마다 최신 공개 데이터를 확인합니다</h2><p>페이지가 열리면 KOSPI와 추적 종목 시세, 상위 섹터 관련 뉴스를 다시 요청합니다. 최신 호출에 실패하면 마지막으로 검증된 기본 데이터가 표시됩니다.</p><ul><li>시세: 네이버 금융 공개 시세 · 최대 1분 캐시</li><li>뉴스: Google 뉴스 공개 RSS · 제목 기반 핵심 확인</li><li>관심 가격: 전일 종가와 최근 거래일 저가 기반 자동 계산</li><li>상승 색상: 빨강 · 하락 색상: 파랑</li></ul></div></div>
+  <div class="modal-backdrop" id="modal"><div class="modal"><button id="modalClose" aria-label="닫기">×</button><p class="eyebrow">DATA GUIDE</p><h2>한국·미국 시장을 같은 방식으로 비교합니다</h2><p id="dataGuideCopy">페이지가 열리면 기준지수와 추적 종목 시세, 상위 섹터 관련 뉴스를 확인합니다. 최신 호출에 실패하면 마지막 검증 데이터가 표시됩니다.</p><ul><li id="dataGuidePrice">한국: 네이버 금융 · 미국: Yahoo Finance 공개 차트</li><li>뉴스: Google 뉴스 공개 RSS · 제목과 시장 맥락 요약</li><li>관심 가격: 전일 종가와 최근 거래일 저가 기반 자동 계산</li><li>상승 색상: 빨강 · 하락 색상: 파랑</li></ul></div></div>
   <div class="modal-backdrop" id="stockModal"><div class="modal stock-modal"><button id="stockModalClose" aria-label="닫기">×</button><p class="eyebrow">STOCK PROFILE</p><h2 id="profileName"></h2><p class="profile-code" id="profileCode"></p><div class="profile-price"><strong id="profilePrice"></strong><span id="profilePriceDate"></span></div><div class="profile-metrics" id="profileMetrics"></div><p id="profileDesc"></p><div class="business-tags" id="profileTags"></div><p class="source-note">가격은 페이지를 연 시점에 확인한 최근 공개 시세입니다. 거래소 체결가와 지연 또는 차이가 있을 수 있습니다.</p></div></div>
-  <script src="data.js?v=20261005-1"></script><script src="app.js?v=20261005-1"></script>
+  <script src="data.js?v=20261005-2"></script><script src="app.js?v=20261005-2"></script>
 </body>
 </html>

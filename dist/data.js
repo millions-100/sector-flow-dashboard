@@ -1,5 +1,5 @@
 // 데이터 계층: 실제 API 연동 시 getMarketDays/getDayDetail 함수만 교체하면 됩니다.
-const SAMPLE_MARKET_DATA = [
+const KOREA_SAMPLE_MARKET_DATA = [
   {
     date: "2026-10-02", kospi: 0.46,
     sectors: [
@@ -63,6 +63,25 @@ const SAMPLE_MARKET_DATA = [
   }
 ];
 
+const US_SAMPLE_MARKET_DATA = [
+  { date: "2026-10-02", kospi: 0.72, sectors: [
+    { name: "AI·반도체", returnRate: 1.48, stocks: [{ name: "엔비디아", code: "NVDA", returnRate: 1.34 }, { name: "브로드컴", code: "AVGO", returnRate: 1.71 }, { name: "AMD", code: "AMD", returnRate: 1.26 }] },
+    { name: "소프트웨어·클라우드", returnRate: 0.91, stocks: [{ name: "마이크로소프트", code: "MSFT", returnRate: 0.82 }, { name: "오라클", code: "ORCL", returnRate: 1.03 }, { name: "세일즈포스", code: "CRM", returnRate: 0.75 }] }
+  ]},
+  { date: "2026-10-01", kospi: -0.64, sectors: [
+    { name: "에너지", returnRate: 1.43, stocks: [{ name: "엑슨모빌", code: "XOM", returnRate: 1.62 }, { name: "셰브론", code: "CVX", returnRate: 1.21 }, { name: "코노코필립스", code: "COP", returnRate: 1.48 }] },
+    { name: "유틸리티", returnRate: 0.78, stocks: [{ name: "넥스트에라 에너지", code: "NEE", returnRate: 0.91 }, { name: "서던 컴퍼니", code: "SO", returnRate: 0.69 }, { name: "듀크 에너지", code: "DUK", returnRate: 0.72 }] }
+  ]},
+  { date: "2026-09-30", kospi: -1.12, sectors: [
+    { name: "필수소비재", returnRate: 1.18, stocks: [{ name: "월마트", code: "WMT", returnRate: 1.44 }, { name: "코스트코", code: "COST", returnRate: 1.07 }, { name: "P&G", code: "PG", returnRate: 0.91 }] },
+    { name: "헬스케어", returnRate: 0.83, stocks: [{ name: "일라이 릴리", code: "LLY", returnRate: 1.05 }, { name: "유나이티드헬스", code: "UNH", returnRate: 0.72 }, { name: "존슨앤드존슨", code: "JNJ", returnRate: 0.64 }] }
+  ]},
+  { date: "2026-09-29", kospi: 0.31, sectors: [{ name: "금융", returnRate: 0.88, stocks: [{ name: "JP모건", code: "JPM", returnRate: 1.02 }, { name: "뱅크오브아메리카", code: "BAC", returnRate: 0.79 }, { name: "골드만삭스", code: "GS", returnRate: 0.83 }] }] },
+  { date: "2026-09-28", kospi: -0.47, sectors: [{ name: "소재·금", returnRate: 1.36, stocks: [{ name: "린데", code: "LIN", returnRate: 0.64 }, { name: "뉴몬트", code: "NEM", returnRate: 2.18 }, { name: "프리포트 맥모란", code: "FCX", returnRate: 1.27 }] }] }
+];
+
+let SAMPLE_MARKET_DATA = KOREA_SAMPLE_MARKET_DATA;
+
 const LIVE_STATE = {
   status: "loading",
   requestedAt: null,
@@ -71,10 +90,14 @@ const LIVE_STATE = {
 };
 
 function applyLivePayload(payload) {
-  const incoming = payload.marketDay;
-  const sameDateIndex = SAMPLE_MARKET_DATA.findIndex(day => day.date === incoming.date);
-  if (sameDateIndex >= 0) SAMPLE_MARKET_DATA[sameDateIndex] = incoming;
-  else SAMPLE_MARKET_DATA.unshift(incoming);
+  if (payload.marketDays?.length) {
+    SAMPLE_MARKET_DATA.splice(0, SAMPLE_MARKET_DATA.length, ...payload.marketDays);
+  } else {
+    const incoming = payload.marketDay;
+    const sameDateIndex = SAMPLE_MARKET_DATA.findIndex(day => day.date === incoming.date);
+    if (sameDateIndex >= 0) SAMPLE_MARKET_DATA[sameDateIndex] = incoming;
+    else SAMPLE_MARKET_DATA.unshift(incoming);
+  }
   SAMPLE_MARKET_DATA.sort((a, b) => b.date.localeCompare(a.date));
 
   Object.entries(payload.quotes || {}).forEach(([code, quote]) => {
@@ -88,7 +111,11 @@ function applyLivePayload(payload) {
       price: quote.price,
       priceDate: quote.date,
       marketCap: quote.marketCap || current.marketCap || "—",
-      volume: quote.volume || current.volume || "—"
+      volume: quote.volume || current.volume || "—",
+      fiftyTwoWeekRange: quote.fiftyTwoWeekRange || current.fiftyTwoWeekRange || "—",
+      exchange: quote.exchange || current.exchange || "",
+      description: quote.description || current.description,
+      business: quote.business || current.business
     };
   });
 
@@ -104,7 +131,7 @@ async function refreshLiveData(force = false) {
   try {
     let payload = null;
     const sources = [
-      `/api/market?refresh=${force ? 1 : 0}&t=${Date.now()}`,
+      `/api/market?market=${ACTIVE_MARKET}&refresh=${force ? 1 : 0}&t=${Date.now()}`,
       `./market-snapshot.json?t=${Date.now()}`
     ];
     for (const source of sources) {
@@ -112,7 +139,8 @@ async function refreshLiveData(force = false) {
         const response = await fetch(source, { cache: "no-store" });
         if (!response.ok) continue;
         const candidate = await response.json();
-        if (candidate.ok && candidate.marketDay) { payload = candidate; break; }
+        const selected = candidate.markets?.[ACTIVE_MARKET] || candidate;
+        if (selected.ok && selected.marketDay && (!selected.marketKey || selected.marketKey === ACTIVE_MARKET)) { payload = selected; break; }
       } catch (_) {}
     }
     if (!payload) throw new Error("live sources unavailable");
@@ -123,7 +151,7 @@ async function refreshLiveData(force = false) {
     LIVE_STATE.provider = payload.provider || LIVE_STATE.provider;
     LIVE_STATE.message = payload.snapshot
       ? "GitHub 자동 갱신 반영"
-      : payload.marketDay.date === new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" })
+      : payload.marketDay.date === new Date().toLocaleDateString("sv-SE", { timeZone: ACTIVE_MARKET === "us" ? "America/New_York" : "Asia/Seoul" })
         ? "오늘 데이터 반영"
         : "최근 거래일 반영";
   } catch (error) {
@@ -139,11 +167,25 @@ const marketRepository = {
     await refreshLiveData(force);
     return structuredClone(SAMPLE_MARKET_DATA);
   },
+  async setMarket(market, force = false) {
+    ACTIVE_MARKET = MARKET_PROFILES[market] ? market : "kr";
+    const profile = MARKET_PROFILES[ACTIVE_MARKET];
+    SAMPLE_MARKET_DATA = profile.data;
+    MARKET_INTELLIGENCE = profile.intelligence;
+    DAILY_OUTLOOK = profile.outlook;
+    LIVE_STATE.provider = profile.provider;
+    LIVE_STATE.status = "loading";
+    LIVE_STATE.message = "최신 데이터 확인 중";
+    await refreshLiveData(force);
+    return structuredClone(SAMPLE_MARKET_DATA);
+  },
+  get activeMarket() { return ACTIVE_MARKET; },
+  get profile() { return MARKET_PROFILES[ACTIVE_MARKET]; },
   async getDayDetail(date) { return structuredClone(SAMPLE_MARKET_DATA.find(d => d.date === date)); }
 };
 
 // 실제 연동 시 quote/news API 응답으로 교체하는 시장 정보 계층입니다.
-const MARKET_INTELLIGENCE = {
+let MARKET_INTELLIGENCE = {
   stocks: {
     "047810": { price: 133500, priceDate: "2026-10-02", marketCap: "13.0조원", volume: "25.1만주", description: "군용기·위성·항공기 구조물을 개발·생산하는 국내 대표 항공우주 기업입니다.", business: ["군용기", "위성", "항공우주"] },
     "373220": { price: 371000, priceDate: "2026-10-02", marketCap: "86.8조원", volume: "20.6만주", description: "전기차와 에너지저장장치용 배터리를 생산하는 글로벌 배터리 제조기업입니다.", business: ["전기차 배터리", "ESS", "원통형 배터리"] },
@@ -184,7 +226,7 @@ const MARKET_INTELLIGENCE = {
   }
 };
 
-const DAILY_OUTLOOK = {
+let DAILY_OUTLOOK = {
   asOf: "2026-10-02 15:30",
   market: { name: "KOSPI", returnRate: 0.46, close: "7,003.74", breadth: "상승 500 · 하락 362" },
   focus: {
@@ -211,3 +253,48 @@ const DAILY_OUTLOOK = {
     { label: "HD한국조선해양 컨센서스", url: "https://comp.wisereport.co.kr/bridgefn/company/c1010001.aspx?cmp_cd=009540" }
   ]
 };
+
+const KOREA_INTELLIGENCE = MARKET_INTELLIGENCE;
+const KOREA_OUTLOOK = DAILY_OUTLOOK;
+
+const US_INTELLIGENCE = {
+  stocks: {
+    NVDA: { price: 233.95, priceDate: "2026-10-02", marketCap: "공개 차트 미제공", volume: "135.2M", fiftyTwoWeekRange: "$164.27~$237.88", exchange: "Nasdaq", description: "AI 가속기와 데이터센터 GPU 생태계를 주도하는 반도체 기업입니다.", business: ["AI GPU", "데이터센터", "CUDA"] },
+    AVGO: { price: 365.20, priceDate: "2026-10-02", marketCap: "공개 차트 미제공", volume: "—", fiftyTwoWeekRange: "—", exchange: "Nasdaq", description: "AI 네트워킹 반도체와 인프라 소프트웨어를 공급합니다.", business: ["네트워킹", "ASIC", "소프트웨어"] },
+    AMD: { price: 213.10, priceDate: "2026-10-02", marketCap: "공개 차트 미제공", volume: "—", fiftyTwoWeekRange: "—", exchange: "Nasdaq", description: "CPU와 GPU, 데이터센터 가속기를 설계합니다.", business: ["CPU", "GPU", "데이터센터"] },
+    XOM: { price: 118.40, priceDate: "2026-10-01", marketCap: "공개 차트 미제공", volume: "—", fiftyTwoWeekRange: "—", exchange: "NYSE", description: "원유·가스의 탐사부터 정제·화학까지 영위하는 통합 에너지 기업입니다.", business: ["원유", "천연가스", "정제"] },
+    CVX: { price: 164.20, priceDate: "2026-10-01", marketCap: "공개 차트 미제공", volume: "—", fiftyTwoWeekRange: "—", exchange: "NYSE", description: "글로벌 업스트림과 정제 사업을 영위하는 통합 에너지 기업입니다.", business: ["원유", "LNG", "정제"] },
+    COP: { price: 104.80, priceDate: "2026-10-01", marketCap: "공개 차트 미제공", volume: "—", fiftyTwoWeekRange: "—", exchange: "NYSE", description: "미국 중심의 원유·천연가스 탐사 및 생산 기업입니다.", business: ["원유", "셰일", "천연가스"] }
+  },
+  news: {}
+};
+
+const US_OUTLOOK = {
+  asOf: "2026-10-02 16:00 ET",
+  market: { name: "S&P 500", returnRate: 0.72, close: "—", breadth: "SPY 및 섹터 ETF 기준" },
+  focus: {
+    sector: "AI·반도체", score: 78, status: "상대강도 우위",
+    thesis: "S&P 500 대비 반도체 ETF와 대표 종목의 동반 강도를 비교한 기본 화면입니다. 연결된 최신 스냅샷이 도착하면 수치와 순위가 자동으로 교체됩니다.",
+    positives: ["엔비디아 +1.34%", "브로드컴 +1.71%", "AMD +1.26%"],
+    checks: ["SMH 거래량이 가격 상승에 동행하는지", "대표 3종목이 지수보다 강한지", "실적 가이던스와 AI 투자 흐름이 유지되는지"]
+  },
+  entries: [
+    { name: "엔비디아", code: "NVDA", close: 233.95, appeal: 72, priceLabel: "최근 종가", zone1: "$227.00~$231.00", zone2: "$219.00~$224.00", invalid: "$214.00 이탈", basis: "최근 종가와 당일 저가를 이용한 기본 관찰 구간" },
+    { name: "브로드컴", code: "AVGO", close: 365.20, appeal: 68, priceLabel: "최근 종가", zone1: "$354.00~$361.00", zone2: "$342.00~$350.00", invalid: "$335.00 이탈", basis: "최근 종가와 변동폭을 이용한 기본 관찰 구간" },
+    { name: "AMD", code: "AMD", close: 213.10, appeal: 64, priceLabel: "최근 종가", zone1: "$207.00~$211.00", zone2: "$199.00~$204.00", invalid: "$195.00 이탈", basis: "최근 종가와 당일 저가를 이용한 기본 관찰 구간" }
+  ],
+  rotation: [
+    { sector: "유틸리티", stage: "탄력 둔화", signal: 34, note: "금리와 방어주 수요를 함께 확인" },
+    { sector: "AI·반도체", stage: "현재 주도", signal: 84, note: "SMH와 대표 3종목의 상대강도" },
+    { sector: "소프트웨어·클라우드", stage: "확산 중", signal: 66, note: "IGV와 대형 소프트웨어 동행 여부" },
+    { sector: "금융", stage: "다음 후보", signal: 55, note: "장기금리와 순이자마진 기대 확인" }
+  ],
+  sources: [{ label: "S&P 500 ETF 시세", url: "https://finance.yahoo.com/quote/SPY/" }]
+};
+
+const MARKET_PROFILES = {
+  kr: { key: "kr", label: "한국", benchmark: "KOSPI", currency: "KRW", data: KOREA_SAMPLE_MARKET_DATA, intelligence: KOREA_INTELLIGENCE, outlook: KOREA_OUTLOOK, provider: "네이버 금융 · Google 뉴스" },
+  us: { key: "us", label: "미국", benchmark: "S&P 500", currency: "USD", data: US_SAMPLE_MARKET_DATA, intelligence: US_INTELLIGENCE, outlook: US_OUTLOOK, provider: "Yahoo Finance 공개 차트 · Google News" }
+};
+
+let ACTIVE_MARKET = "kr";

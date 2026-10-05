@@ -30,7 +30,7 @@ HOST = "127.0.0.1"
 PORT = 8080
 CACHE_SECONDS = 60
 
-SECTORS = {
+KR_SECTORS = {
     "방산·우주": [
         ("047810", "한국항공우주"),
         ("079550", "LIG넥스원"),
@@ -55,6 +55,52 @@ SECTORS = {
     "자동차": [("005380", "현대차"), ("000270", "기아")],
 }
 
+US_SECTORS = {
+    "AI·반도체": {"etf": "SMH", "stocks": [("NVDA", "엔비디아"), ("AVGO", "브로드컴"), ("AMD", "AMD")]},
+    "소프트웨어·클라우드": {"etf": "IGV", "stocks": [("MSFT", "마이크로소프트"), ("ORCL", "오라클"), ("CRM", "세일즈포스")]},
+    "커뮤니케이션": {"etf": "XLC", "stocks": [("META", "메타"), ("GOOGL", "알파벳"), ("NFLX", "넷플릭스")]},
+    "임의소비재": {"etf": "XLY", "stocks": [("AMZN", "아마존"), ("TSLA", "테슬라"), ("HD", "홈디포")]},
+    "금융": {"etf": "XLF", "stocks": [("JPM", "JP모건"), ("BAC", "뱅크오브아메리카"), ("GS", "골드만삭스")]},
+    "산업재·방산": {"etf": "XLI", "stocks": [("GE", "GE 에어로스페이스"), ("CAT", "캐터필러"), ("RTX", "RTX")]},
+    "헬스케어": {"etf": "XLV", "stocks": [("LLY", "일라이 릴리"), ("UNH", "유나이티드헬스"), ("JNJ", "존슨앤드존슨")]},
+    "에너지": {"etf": "XLE", "stocks": [("XOM", "엑슨모빌"), ("CVX", "셰브론"), ("COP", "코노코필립스")]},
+    "유틸리티": {"etf": "XLU", "stocks": [("NEE", "넥스트에라 에너지"), ("SO", "서던 컴퍼니"), ("DUK", "듀크 에너지")]},
+    "필수소비재": {"etf": "XLP", "stocks": [("WMT", "월마트"), ("COST", "코스트코"), ("PG", "P&G")]},
+    "소재·금": {"etf": "XLB", "stocks": [("LIN", "린데"), ("NEM", "뉴몬트"), ("FCX", "프리포트 맥모란")]},
+}
+
+US_STOCK_INFO = {
+    "NVDA": ("AI 가속기와 데이터센터 GPU 생태계를 주도하는 반도체 기업입니다.", ["AI GPU", "데이터센터", "CUDA"]),
+    "AVGO": ("AI 네트워킹 반도체와 인프라 소프트웨어를 공급합니다.", ["네트워킹", "ASIC", "인프라 소프트웨어"]),
+    "AMD": ("CPU와 GPU, 데이터센터 가속기를 설계하는 팹리스 반도체 기업입니다.", ["CPU", "GPU", "데이터센터"]),
+    "MSFT": ("Azure 클라우드와 기업용 소프트웨어, 생성형 AI 서비스를 제공합니다.", ["Azure", "Copilot", "기업 소프트웨어"]),
+    "ORCL": ("데이터베이스와 클라우드 인프라를 제공하는 기업용 소프트웨어 회사입니다.", ["데이터베이스", "OCI", "클라우드"]),
+    "CRM": ("고객관계관리 소프트웨어와 기업용 AI 서비스를 제공합니다.", ["CRM", "데이터 클라우드", "AI 에이전트"]),
+    "META": ("광고 플랫폼과 소셜 서비스, AI 추천 기술을 운영합니다.", ["광고", "소셜 플랫폼", "AI"]),
+    "GOOGL": ("검색·광고와 클라우드, 유튜브, AI 모델 사업을 운영합니다.", ["검색", "클라우드", "Gemini"]),
+    "NFLX": ("글로벌 스트리밍 구독과 광고형 요금제를 운영합니다.", ["스트리밍", "광고", "콘텐츠"]),
+    "AMZN": ("전자상거래와 AWS 클라우드, 광고 사업을 운영합니다.", ["전자상거래", "AWS", "광고"]),
+    "TSLA": ("전기차와 에너지저장장치, 자율주행 소프트웨어를 개발합니다.", ["전기차", "에너지", "자율주행"]),
+    "JPM": ("소비자금융·기업금융·투자은행을 아우르는 미국 대형 은행입니다.", ["은행", "투자은행", "카드"]),
+    "LLY": ("비만·당뇨와 신경계 치료제를 개발하는 글로벌 제약사입니다.", ["비만 치료제", "당뇨", "신약"]),
+    "XOM": ("석유·가스의 탐사부터 정제·화학까지 영위하는 통합 에너지 기업입니다.", ["원유", "천연가스", "정제"]),
+    "GE": ("상업용·군용 항공기 엔진과 항공 서비스를 제공합니다.", ["항공 엔진", "서비스", "방산"]),
+}
+
+US_NEWS_QUERIES = {
+    "AI·반도체": "AI semiconductor stocks",
+    "소프트웨어·클라우드": "software cloud stocks",
+    "커뮤니케이션": "communication services stocks",
+    "임의소비재": "consumer discretionary stocks",
+    "금융": "US financial sector stocks",
+    "산업재·방산": "industrial defense stocks",
+    "헬스케어": "healthcare stocks",
+    "에너지": "energy stocks oil",
+    "유틸리티": "utilities stocks",
+    "필수소비재": "consumer staples stocks",
+    "소재·금": "materials gold stocks",
+}
+
 SECTOR_CHECKS = {
     "방산·우주": ["수출 계약·수주잔고가 실제 실적으로 이어지는지", "행사·정책 기대 이후 거래량이 유지되는지", "대표 3종목의 동반 강세가 이어지는지"],
     "2차전지": ["전기차 수요와 배터리 판가 회복 여부", "외국인 수급이 대형주로 이어지는지", "급등 뒤 전일 저점이 지지되는지"],
@@ -64,7 +110,7 @@ SECTOR_CHECKS = {
 }
 
 _cache_lock = threading.Lock()
-_cache = {"at": 0.0, "payload": None}
+_cache = {"kr": {"at": 0.0, "payload": None}, "us": {"at": 0.0, "payload": None}}
 
 try:
     import certifi
@@ -134,6 +180,54 @@ def fetch_kospi() -> dict:
     }
 
 
+def fetch_yahoo_chart(symbol: str, period: str = "1mo") -> tuple[str, dict]:
+    """Return recent daily bars and quote metadata from Yahoo's public chart feed."""
+    encoded = urllib.parse.quote(symbol, safe="")
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range={period}&interval=1d&events=div%2Csplits"
+    result = fetch_json(url)["chart"]["result"][0]
+    meta = result["meta"]
+    quote = result["indicators"]["quote"][0]
+    bars = []
+    for index, timestamp in enumerate(result.get("timestamp", [])):
+        close = quote.get("close", [None])[index]
+        if close is None:
+            continue
+        bars.append(
+            {
+                "date": datetime.fromtimestamp(timestamp, tz=datetime.now().astimezone().tzinfo).strftime("%Y-%m-%d"),
+                "close": float(close),
+                "open": float(quote.get("open", [close])[index] or close),
+                "high": float(quote.get("high", [close])[index] or close),
+                "low": float(quote.get("low", [close])[index] or close),
+                "volume": int(quote.get("volume", [0])[index] or 0),
+            }
+        )
+    for index, bar in enumerate(bars):
+        previous = bars[index - 1]["close"] if index else None
+        bar["returnRate"] = round((bar["close"] / previous - 1) * 100, 4) if previous else 0.0
+    latest = bars[-1]
+    traded_at = datetime.fromtimestamp(meta.get("regularMarketTime", 0)).astimezone()
+    return symbol, {
+        "code": symbol,
+        "name": meta.get("shortName") or meta.get("longName") or symbol,
+        "price": float(meta.get("regularMarketPrice") or latest["close"]),
+        "previousClose": float(meta.get("chartPreviousClose") or (bars[-2]["close"] if len(bars) > 1 else latest["close"])),
+        "returnRate": float(meta.get("regularMarketChangePercent") or latest["returnRate"]),
+        "open": latest["open"],
+        "high": float(meta.get("regularMarketDayHigh") or latest["high"]),
+        "low": float(meta.get("regularMarketDayLow") or latest["low"]),
+        "volume": int(meta.get("regularMarketVolume") or latest["volume"]),
+        "tradedAt": traded_at.isoformat(timespec="minutes"),
+        "date": latest["date"],
+        "marketStatus": "CLOSE",
+        "currency": meta.get("currency", "USD"),
+        "exchange": meta.get("fullExchangeName") or meta.get("exchangeName", "US"),
+        "fiftyTwoWeekLow": meta.get("fiftyTwoWeekLow"),
+        "fiftyTwoWeekHigh": meta.get("fiftyTwoWeekHigh"),
+        "history": bars,
+    }
+
+
 def clean_text(value: str) -> str:
     value = re.sub(r"<[^>]+>", " ", value or "")
     return re.sub(r"\s+", " ", html.unescape(value)).strip()
@@ -194,30 +288,42 @@ def won_range(low: float, high: float) -> str:
     return f"{rounded(low):,}~{rounded(high):,}원"
 
 
-def make_entry(quote: dict, sector_return: float, kospi_return: float) -> dict:
+def usd_range(low: float, high: float) -> str:
+    return f"${low:,.2f}~${high:,.2f}"
+
+
+def make_entry(quote: dict, sector_return: float, benchmark_return: float, currency: str = "KRW") -> dict:
     close = quote["price"]
     previous = quote["previousClose"]
     session_low = quote["low"]
     zone1_mid = min(close * 0.985, max(previous, session_low))
     zone2_mid = min(session_low * 0.982, previous * 0.975)
-    invalid = rounded(min(zone2_mid * 0.965, session_low * 0.95))
-    appeal = round(max(48, min(92, 78 + (sector_return - kospi_return) * 2 - max(0, quote["returnRate"]) * 3)))
+    invalid_raw = min(zone2_mid * 0.965, session_low * 0.95)
+    appeal = round(max(48, min(92, 78 + (sector_return - benchmark_return) * 2 - max(0, quote["returnRate"]) * 3)))
+    if currency == "USD":
+        zone1 = usd_range(zone1_mid * 0.99, zone1_mid * 1.005)
+        zone2 = usd_range(zone2_mid * 0.985, zone2_mid * 1.005)
+        invalid = f"${invalid_raw:,.2f} 이탈"
+    else:
+        zone1 = won_range(zone1_mid * 0.99, zone1_mid * 1.005)
+        zone2 = won_range(zone2_mid * 0.985, zone2_mid * 1.005)
+        invalid = f"{rounded(invalid_raw):,}원 이탈"
     return {
         "name": quote["name"],
         "code": quote["code"],
         "close": close,
         "priceLabel": "최근 종가" if quote.get("marketStatus") == "CLOSE" else "장중 현재가",
         "appeal": appeal,
-        "zone1": won_range(zone1_mid * 0.99, zone1_mid * 1.005),
-        "zone2": won_range(zone2_mid * 0.985, zone2_mid * 1.005),
-        "invalid": f"{invalid:,}원 이탈",
+        "zone1": zone1,
+        "zone2": zone2,
+        "invalid": invalid,
         "basis": "전일 종가·당일 저가를 바탕으로 다시 계산한 눌림 관찰 구간",
     }
 
 
-def build_payload() -> dict:
+def build_kr_payload() -> dict:
     kospi = fetch_kospi()
-    code_to_name = {code: name for rows in SECTORS.values() for code, name in rows}
+    code_to_name = {code: name for rows in KR_SECTORS.values() for code, name in rows}
     quotes: dict[str, dict] = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
         futures = {pool.submit(fetch_quote, code): code for code in code_to_name}
@@ -230,7 +336,7 @@ def build_payload() -> dict:
                 quotes[code] = {"code": code, "name": code_to_name[code], "error": str(exc)}
 
     sectors = []
-    for name, members in SECTORS.items():
+    for name, members in KR_SECTORS.items():
         stocks = []
         for code, fallback_name in members:
             quote = quotes.get(code, {})
@@ -303,6 +409,9 @@ def build_payload() -> dict:
     }
     return {
         "ok": True,
+        "marketKey": "kr",
+        "currency": "KRW",
+        "benchmarkLabel": "KOSPI",
         "provider": "네이버 금융 · Google 뉴스",
         "requestedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
         "marketDay": market_day,
@@ -312,15 +421,205 @@ def build_payload() -> dict:
     }
 
 
-def latest_payload(force: bool = False) -> dict:
+def format_volume(value: int | float) -> str:
+    value = float(value or 0)
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.1f}B"
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M"
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}K"
+    return f"{value:,.0f}"
+
+
+def fetch_us_news(sector: str, etf: str, limit: int = 2) -> list[dict]:
+    query = urllib.parse.quote(f"{US_NEWS_QUERIES.get(sector, 'US sector stocks')} {etf} when:14d")
+    url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+    request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(request, timeout=8, context=SSL_CONTEXT) as response:
+        root = ET.fromstring(response.read())
+    items = []
+    for item in root.findall("./channel/item")[:20]:
+        title = clean_text(item.findtext("title", ""))
+        source = clean_text(item.findtext("source", "")) or "Google News"
+        published = item.findtext("pubDate", "")
+        try:
+            published_at = parsedate_to_datetime(published)
+            date = published_at.strftime("%Y-%m-%d")
+            sort_key = published_at.timestamp()
+        except (TypeError, ValueError):
+            date = published[:16]
+            sort_key = 0
+        items.append(
+            {
+                "date": date,
+                "source": source,
+                "title": title,
+                "summary": f"{sector} 섹터의 실적 전망과 자금 흐름에 영향을 줄 수 있는 최신 보도입니다. 제목의 재료가 실제 매출·가이던스로 이어지는지 원문에서 확인하세요.",
+                "url": item.findtext("link", "#"),
+                "_sort": sort_key,
+            }
+        )
+    items.sort(key=lambda row: row["_sort"], reverse=True)
+    for item in items:
+        item.pop("_sort", None)
+    return items[:limit]
+
+
+def build_us_payload() -> dict:
+    tickers = {"SPY"}
+    for config in US_SECTORS.values():
+        tickers.add(config["etf"])
+        tickers.update(code for code, _ in config["stocks"])
+
+    charts: dict[str, dict] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {pool.submit(fetch_yahoo_chart, ticker): ticker for ticker in tickers}
+        for future in concurrent.futures.as_completed(futures):
+            ticker = futures[future]
+            try:
+                key, value = future.result()
+                charts[key] = value
+            except Exception as exc:
+                charts[ticker] = {"code": ticker, "error": str(exc)}
+
+    benchmark = charts.get("SPY", {})
+    if not benchmark.get("history"):
+        raise RuntimeError("S&P 500 benchmark data is unavailable")
+
+    return_maps = {
+        ticker: {bar["date"]: bar for bar in chart.get("history", [])}
+        for ticker, chart in charts.items()
+        if chart.get("history")
+    }
+    market_days = []
+    for benchmark_bar in benchmark["history"][1:]:
+        date = benchmark_bar["date"]
+        sectors = []
+        for name, config in US_SECTORS.items():
+            etf_bar = return_maps.get(config["etf"], {}).get(date)
+            if not etf_bar:
+                continue
+            stocks = []
+            for ticker, korean_name in config["stocks"]:
+                stock_bar = return_maps.get(ticker, {}).get(date)
+                if stock_bar:
+                    stocks.append({"name": korean_name, "code": ticker, "returnRate": round(stock_bar["returnRate"], 2)})
+            sectors.append({"name": name, "returnRate": round(etf_bar["returnRate"], 2), "stocks": stocks, "etf": config["etf"]})
+        sectors.sort(key=lambda row: row["returnRate"], reverse=True)
+        market_days.append({"date": date, "kospi": round(benchmark_bar["returnRate"], 2), "sectors": sectors})
+
+    market_days.sort(key=lambda row: row["date"], reverse=True)
+    latest_day = market_days[0]
+    top = latest_day["sectors"][0]
+    top_quotes = []
+    for stock in top["stocks"]:
+        quote = charts.get(stock["code"], {})
+        if "price" in quote:
+            quote = {**quote, "name": stock["name"]}
+            top_quotes.append(quote)
+    relative = top["returnRate"] - latest_day["kospi"]
+    focus_score = round(max(45, min(95, 60 + relative * 6 + sum(q["returnRate"] > 0 for q in top_quotes) * 4)))
+    status = "강세 확산" if top["returnRate"] > 1 and len(top_quotes) > 1 else "상대강도 우위"
+    if top["returnRate"] > 3:
+        status += " · 추격 주의"
+
+    news: dict[str, list[dict]] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        futures = {
+            pool.submit(fetch_us_news, sector["name"], sector.get("etf", "")): sector["name"]
+            for sector in latest_day["sectors"][:4]
+        }
+        for future in concurrent.futures.as_completed(futures):
+            name = futures[future]
+            try:
+                news[name] = future.result()
+            except Exception:
+                news[name] = []
+
+    weakest = latest_day["sectors"][-1]
+    stage_rows = [(weakest, "탄력 둔화"), (latest_day["sectors"][0], "현재 주도"), (latest_day["sectors"][1], "확산 중"), (latest_day["sectors"][2], "다음 후보")]
+    stages = []
+    for sector, stage in stage_rows:
+        signal = round(max(12, min(96, 48 + (sector["returnRate"] - latest_day["kospi"]) * 12)))
+        names = "·".join(stock["name"] for stock in sector["stocks"][:2])
+        stages.append(
+            {
+                "sector": sector["name"],
+                "stage": stage,
+                "signal": signal,
+                "note": f"{sector.get('etf', '')} {sector['returnRate']:+.2f}% · {names} 흐름을 함께 확인",
+            }
+        )
+
+    quotes = {}
+    all_names = {code: name for config in US_SECTORS.values() for code, name in config["stocks"]}
+    for code, korean_name in all_names.items():
+        quote = charts.get(code, {})
+        if "price" not in quote:
+            continue
+        description, business = US_STOCK_INFO.get(
+            code,
+            (f"{quote.get('name', korean_name)}의 가격·거래량과 섹터 상대강도를 추적하는 미국 상장 기업입니다.", ["미국 주식", "섹터 대표주"]),
+        )
+        low_52 = quote.get("fiftyTwoWeekLow")
+        high_52 = quote.get("fiftyTwoWeekHigh")
+        quotes[code] = {
+            **quote,
+            "name": korean_name,
+            "marketCap": "공개 차트 미제공",
+            "volume": format_volume(quote.get("volume", 0)),
+            "fiftyTwoWeekRange": f"${low_52:,.2f}~${high_52:,.2f}" if low_52 is not None and high_52 is not None else "—",
+            "description": description,
+            "business": business,
+        }
+
+    positives = [f"{q['name']} {q['returnRate']:+.2f}%" for q in sorted(top_quotes, key=lambda q: q["returnRate"], reverse=True)]
+    latest_date = latest_day["date"]
+    outlook = {
+        "asOf": f"{latest_date} 16:00 ET",
+        "market": {"name": "S&P 500", "returnRate": latest_day["kospi"], "close": f"{benchmark['price']:,.2f}", "breadth": "SPY 및 섹터 ETF 기준"},
+        "focus": {
+            "sector": top["name"],
+            "score": focus_score,
+            "status": status,
+            "thesis": f"최근 미국 거래일 S&P 500이 {latest_day['kospi']:+.2f}% 움직인 동안 {top['name']} ETF({top.get('etf', '')})는 {top['returnRate']:+.2f}%였습니다. 시장 대비 {relative:+.2f}%p의 상대강도와 대표 종목의 동반 여부를 함께 반영했습니다.",
+            "positives": positives,
+            "checks": ["섹터 ETF 거래량이 가격 상승에 동행하는지", "대표 3종목이 지수보다 강한 흐름을 유지하는지", "뉴스 재료가 다음 실적 가이던스에 반영되는지"],
+        },
+        "entries": [make_entry(q, top["returnRate"], latest_day["kospi"], "USD") for q in sorted(top_quotes, key=lambda q: q["returnRate"], reverse=True)[:3]],
+        "rotation": stages,
+        "sources": [
+            {"label": "S&P 500 ETF 시세", "url": "https://finance.yahoo.com/quote/SPY/"},
+            {"label": f"{top['name']} 최신 뉴스", "url": f"https://news.google.com/search?q={urllib.parse.quote('US stocks ' + top['name'])}&hl=en-US&gl=US&ceid=US%3Aen"},
+        ],
+    }
+    return {
+        "ok": True,
+        "marketKey": "us",
+        "currency": "USD",
+        "benchmarkLabel": "S&P 500",
+        "provider": "Yahoo Finance 공개 차트 · Google News",
+        "requestedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "marketDay": latest_day,
+        "marketDays": market_days,
+        "quotes": quotes,
+        "news": news,
+        "outlook": outlook,
+    }
+
+
+def latest_payload(market: str = "kr", force: bool = False) -> dict:
+    market = market if market in {"kr", "us"} else "kr"
     now = time.time()
     with _cache_lock:
-        if not force and _cache["payload"] and now - _cache["at"] < CACHE_SECONDS:
-            return _cache["payload"]
-    payload = build_payload()
+        cached = _cache[market]
+        if not force and cached["payload"] and now - cached["at"] < CACHE_SECONDS:
+            return cached["payload"]
+    payload = build_us_payload() if market == "us" else build_kr_payload()
     with _cache_lock:
-        _cache["at"] = now
-        _cache["payload"] = payload
+        _cache[market]["at"] = now
+        _cache[market]["payload"] = payload
     return payload
 
 
@@ -333,8 +632,9 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/market":
             query = urllib.parse.parse_qs(parsed.query)
             force = query.get("refresh", ["0"])[0] == "1"
+            market = query.get("market", ["kr"])[0]
             try:
-                body = json.dumps(latest_payload(force), ensure_ascii=False).encode("utf-8")
+                body = json.dumps(latest_payload(market, force), ensure_ascii=False).encode("utf-8")
                 status = 200
             except Exception as exc:
                 body = json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False).encode("utf-8")
@@ -353,10 +653,13 @@ if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--snapshot":
         destination = Path(sys.argv[2]).resolve()
         destination.parent.mkdir(parents=True, exist_ok=True)
-        snapshot = build_payload()
-        snapshot["snapshot"] = True
+        kr_snapshot = build_kr_payload()
+        us_snapshot = build_us_payload()
+        kr_snapshot["snapshot"] = True
+        us_snapshot["snapshot"] = True
+        snapshot = {"ok": True, "snapshot": True, "markets": {"kr": kr_snapshot, "us": us_snapshot}}
         destination.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
-        print(f"Latest market snapshot: {destination}")
+        print(f"Latest KR/US market snapshot: {destination}")
     else:
         print(f"Sector Flow: http://localhost:{PORT}")
         print("페이지를 열 때마다 최신 공개 시세와 뉴스를 확인합니다. 종료: Ctrl+C")

@@ -5,7 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
   schedule:
+    # 한국장(09:00~15:30 KST)과 미국장 전후(22:00~11:30 KST)를 30분 간격으로 갱신
     - cron: "*/30 0-6 * * 1-5"
+    - cron: "*/30 13-23 * * 1-5"
+    - cron: "*/30 0-2 * * 2-6"
 
 permissions:
   contents: read
