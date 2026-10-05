@@ -102,17 +102,30 @@ async function refreshLiveData(force = false) {
   LIVE_STATE.status = "loading";
   LIVE_STATE.message = force ? "데이터 새로고침 중" : "최신 데이터 확인 중";
   try {
-    const response = await fetch(`/api/market?refresh=${force ? 1 : 0}&t=${Date.now()}`, { cache: "no-store" });
-    if (!response.ok) throw new Error(`market api ${response.status}`);
-    const payload = await response.json();
+    let payload = null;
+    const sources = [
+      `/api/market?refresh=${force ? 1 : 0}&t=${Date.now()}`,
+      `./market-snapshot.json?t=${Date.now()}`
+    ];
+    for (const source of sources) {
+      try {
+        const response = await fetch(source, { cache: "no-store" });
+        if (!response.ok) continue;
+        const candidate = await response.json();
+        if (candidate.ok && candidate.marketDay) { payload = candidate; break; }
+      } catch (_) {}
+    }
+    if (!payload) throw new Error("live sources unavailable");
     if (!payload.ok || !payload.marketDay) throw new Error(payload.error || "invalid market payload");
     applyLivePayload(payload);
     LIVE_STATE.status = "live";
     LIVE_STATE.requestedAt = payload.requestedAt;
     LIVE_STATE.provider = payload.provider || LIVE_STATE.provider;
-    LIVE_STATE.message = payload.marketDay.date === new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" })
-      ? "오늘 데이터 반영"
-      : "최근 거래일 반영";
+    LIVE_STATE.message = payload.snapshot
+      ? "GitHub 자동 갱신 반영"
+      : payload.marketDay.date === new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" })
+        ? "오늘 데이터 반영"
+        : "최근 거래일 반영";
   } catch (error) {
     console.warn("실시간 데이터 갱신 실패, 검증된 기본 데이터를 사용합니다.", error);
     LIVE_STATE.status = "fallback";

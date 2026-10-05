@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "*/30 0-6 * * 1-5"
 
 permissions:
   contents: read
@@ -27,6 +29,8 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
+      - name: Refresh latest market snapshot
+        run: python3 server.py --snapshot dist/market-snapshot.json
       - name: Upload dashboard
         uses: actions/upload-pages-artifact@v3
         with:

@@ -12,6 +12,7 @@ import html
 import json
 import re
 import ssl
+import sys
 import threading
 import time
 import urllib.parse
@@ -349,6 +350,14 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"Sector Flow: http://localhost:{PORT}")
-    print("페이지를 열 때마다 최신 공개 시세와 뉴스를 확인합니다. 종료: Ctrl+C")
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    if len(sys.argv) == 3 and sys.argv[1] == "--snapshot":
+        destination = Path(sys.argv[2]).resolve()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        snapshot = build_payload()
+        snapshot["snapshot"] = True
+        destination.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
+        print(f"Latest market snapshot: {destination}")
+    else:
+        print(f"Sector Flow: http://localhost:{PORT}")
+        print("페이지를 열 때마다 최신 공개 시세와 뉴스를 확인합니다. 종료: Ctrl+C")
+        ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
