@@ -18,7 +18,7 @@ import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -144,6 +144,7 @@ def fetch_quote(code: str) -> tuple[str, dict]:
         change = -abs(change)
     previous = close - diff
     traded_at = item.get("localTradedAt", "")
+    history = fetch_naver_history(code)
     return code, {
         "code": code,
         "name": item.get("stockName", code),
@@ -158,7 +159,27 @@ def fetch_quote(code: str) -> tuple[str, dict]:
         "tradedAt": traded_at,
         "date": traded_at[:10],
         "marketStatus": item.get("marketStatus", "CLOSE"),
+        "history": history,
     }
+
+
+def fetch_naver_history(code: str, days: int = 180) -> list[dict]:
+    end = datetime.now().strftime("%Y%m%d")
+    start = (datetime.now() - timedelta(days=days)).strftime("%Y%m%d")
+    url = f"https://api.stock.naver.com/chart/domestic/item/{code}/day?startDateTime={start}&endDateTime={end}"
+    rows = fetch_json(url)
+    return [
+        {
+            "date": str(row.get("localDate", ""))[:8],
+            "close": float(row["closePrice"]),
+            "open": float(row.get("openPrice") or row["closePrice"]),
+            "high": float(row.get("highPrice") or row["closePrice"]),
+            "low": float(row.get("lowPrice") or row["closePrice"]),
+            "volume": int(row.get("accumulatedTradingVolume") or 0),
+        }
+        for row in rows
+        if row.get("closePrice") is not None
+    ]
 
 
 def fetch_kospi() -> dict:
@@ -180,7 +201,7 @@ def fetch_kospi() -> dict:
     }
 
 
-def fetch_yahoo_chart(symbol: str, period: str = "1mo") -> tuple[str, dict]:
+def fetch_yahoo_chart(symbol: str, period: str = "6mo") -> tuple[str, dict]:
     """Return recent daily bars and quote metadata from Yahoo's public chart feed."""
     encoded = urllib.parse.quote(symbol, safe="")
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded}?range={period}&interval=1d&events=div%2Csplits"
@@ -292,22 +313,102 @@ def usd_range(low: float, high: float) -> str:
     return f"${low:,.2f}~${high:,.2f}"
 
 
+def ema(values: list[float], period: int) -> float:
+    if not values:
+        return 0.0
+    multiplier = 2 / (period + 1)
+    result = sum(values[: min(period, len(values))]) / min(period, len(values))
+    for value in values[min(period, len(values)) :]:
+        result = (value - result) * multiplier + result
+    return result
+
+
+def rsi(values: list[float], period: int = 14) -> float:
+    if len(values) < 2:
+        return 50.0
+    changes = [values[index] - values[index - 1] for index in range(1, len(values))]
+    window = changes[-period:]
+    gains = sum(max(change, 0) for change in window) / len(window)
+    losses = sum(max(-change, 0) for change in window) / len(window)
+    if losses == 0:
+        return 100.0 if gains else 50.0
+    relative_strength = gains / losses
+    return 100 - (100 / (1 + relative_strength))
+
+
+def atr(history: list[dict], period: int = 14) -> float:
+    if not history:
+        return 0.0
+    true_ranges = []
+    for index, bar in enumerate(history):
+        previous_close = history[index - 1]["close"] if index else bar["close"]
+        true_ranges.append(max(bar["high"] - bar["low"], abs(bar["high"] - previous_close), abs(bar["low"] - previous_close)))
+    window = true_ranges[-period:]
+    return sum(window) / len(window)
+
+
+def percentile(values: list[float], ratio: float) -> float:
+    ordered = sorted(values)
+    if not ordered:
+        return 0.0
+    return ordered[min(len(ordered) - 1, round((len(ordered) - 1) * ratio))]
+
+
 def make_entry(quote: dict, sector_return: float, benchmark_return: float, currency: str = "KRW") -> dict:
     close = quote["price"]
-    previous = quote["previousClose"]
-    session_low = quote["low"]
-    zone1_mid = min(close * 0.985, max(previous, session_low))
-    zone2_mid = min(session_low * 0.982, previous * 0.975)
-    invalid_raw = min(zone2_mid * 0.965, session_low * 0.95)
-    appeal = round(max(48, min(92, 78 + (sector_return - benchmark_return) * 2 - max(0, quote["returnRate"]) * 3)))
+    history = quote.get("history") or [
+        {"close": quote.get("previousClose", close), "high": quote.get("high", close), "low": quote.get("low", close), "volume": 0},
+        {"close": close, "high": quote.get("high", close), "low": quote.get("low", close), "volume": 0},
+    ]
+    closes = [float(bar["close"]) for bar in history if bar.get("close") is not None]
+    last20 = history[-20:]
+    last60 = history[-60:]
+    ema20 = ema(closes, 20)
+    ema50 = ema(closes, 50)
+    rsi14 = rsi(closes, 14)
+    atr14 = max(atr(history, 14), close * 0.006)
+    volume_sum = sum(float(bar.get("volume") or 0) for bar in last20)
+    vwap20 = (
+        sum(((float(bar["high"]) + float(bar["low"]) + float(bar["close"])) / 3) * float(bar.get("volume") or 0) for bar in last20) / volume_sum
+        if volume_sum
+        else sum(float(bar["close"]) for bar in last20) / len(last20)
+    )
+    support = percentile([float(bar["low"]) for bar in last60], 0.25)
+
+    short_fair = ema20 * 0.55 + vwap20 * 0.45
+    rsi_discount = max(0.0, min(1.0, (rsi14 - 58) / 22)) * atr14 * 0.7
+    zone1_mid = min(close, short_fair - rsi_discount)
+    long_fair = ema50 * 0.65 + support * 0.35
+    zone2_mid = min(zone1_mid - atr14 * 0.75, long_fair)
+    zone1_width = max(atr14 * 0.28, zone1_mid * 0.004)
+    zone2_width = max(atr14 * 0.35, zone2_mid * 0.005)
+    zone1_low = max(0.01, zone1_mid - zone1_width)
+    zone1_high = max(zone1_low, min(close, zone1_mid + zone1_width))
+    zone2_low = max(0.01, zone2_mid - zone2_width)
+    zone2_high = max(zone2_low, min(zone1_low * 0.995, zone2_mid + zone2_width))
+
+    rsi_fit = max(0, 22 - abs(rsi14 - 50) * 0.55)
+    trend_bonus = 5 if close >= ema50 else -3
+    appeal = round(max(40, min(92, 50 + (sector_return - benchmark_return) * 3 + rsi_fit + trend_bonus)))
     if currency == "USD":
-        zone1 = usd_range(zone1_mid * 0.99, zone1_mid * 1.005)
-        zone2 = usd_range(zone2_mid * 0.985, zone2_mid * 1.005)
-        invalid = f"${invalid_raw:,.2f} 이탈"
+        zone1 = usd_range(zone1_low, zone1_high)
+        zone2 = usd_range(zone2_low, zone2_high)
+        ma20_label = f"${ema20:,.2f}"
+        ma50_label = f"${ema50:,.2f}"
     else:
-        zone1 = won_range(zone1_mid * 0.99, zone1_mid * 1.005)
-        zone2 = won_range(zone2_mid * 0.985, zone2_mid * 1.005)
-        invalid = f"{rounded(invalid_raw):,}원 이탈"
+        zone1 = won_range(zone1_low, zone1_high)
+        zone2 = won_range(zone2_low, zone2_high)
+        ma20_label = f"{rounded(ema20):,}원"
+        ma50_label = f"{rounded(ema50):,}원"
+
+    if zone1_low <= close <= zone1_high:
+        entry_status = "1차 관심 구간 도달"
+    elif close > zone1_high:
+        distance = (close / zone1_high - 1) * 100
+        entry_status = f"1차 구간까지 약 {distance:.1f}% 조정 대기"
+    else:
+        entry_status = "관심 구간 아래 · 추세 회복 확인"
+    rsi_label = "과열" if rsi14 >= 70 else "강세" if rsi14 >= 58 else "중립" if rsi14 >= 42 else "과매도권"
     return {
         "name": quote["name"],
         "code": quote["code"],
@@ -316,8 +417,12 @@ def make_entry(quote: dict, sector_return: float, benchmark_return: float, curre
         "appeal": appeal,
         "zone1": zone1,
         "zone2": zone2,
-        "invalid": invalid,
-        "basis": "전일 종가·당일 저가를 바탕으로 다시 계산한 눌림 관찰 구간",
+        "rsi": round(rsi14, 1),
+        "rsiLabel": rsi_label,
+        "ma20": ma20_label,
+        "ma50": ma50_label,
+        "entryStatus": entry_status,
+        "basis": "RSI14·20일 EMA·20일 VWAP·50일 EMA·ATR14를 종합한 기술적 적정 구간",
     }
 
 

@@ -236,9 +236,9 @@ let DAILY_OUTLOOK = {
     checks: ["장 초반 급등 추격보다 전일 저점 지지 확인", "행사 이후 거래량 감소·차익실현 여부", "외국인 수급이 지수 상승에 동행하는지 확인"]
   },
   entries: [
-    { name: "한국항공우주", code: "047810", close: 133500, appeal: 76, zone1: "127,000~130,000원", zone2: "124,500~126,500원", invalid: "121,500원 이탈", basis: "10월 1일 종가와 최근 한 달 평균 가격대 재확인" },
-    { name: "한화에어로스페이스", code: "012450", close: 1072000, appeal: 68, zone1: "1,025,000~1,045,000원", zone2: "1,000,000~1,015,000원", invalid: "990,000원 이탈", basis: "10월 1일 종가·9월 30일 저가 부근 눌림 구간" },
-    { name: "LIG넥스원", code: "079550", close: 762000, appeal: 61, zone1: "715,000~730,000원", zone2: "680,000~700,000원", invalid: "664,000원 이탈", basis: "직전 돌파 가격대와 20일선 추정 구간" }
+    { name: "한국항공우주", code: "047810", close: 133500, appeal: 76, zone1: "127,000~130,000원", zone2: "124,500~126,500원", rsi: 63.2, rsiLabel: "강세", ma20: "128,500원", ma50: "124,500원", entryStatus: "1차 구간까지 조정 대기", basis: "RSI14·20일 EMA·20일 VWAP·50일 EMA·ATR14 종합" },
+    { name: "한화에어로스페이스", code: "012450", close: 1072000, appeal: 68, zone1: "1,025,000~1,045,000원", zone2: "1,000,000~1,015,000원", rsi: 61.4, rsiLabel: "강세", ma20: "1,034,000원", ma50: "1,006,000원", entryStatus: "1차 구간까지 조정 대기", basis: "RSI14·20일 EMA·20일 VWAP·50일 EMA·ATR14 종합" },
+    { name: "LIG넥스원", code: "079550", close: 762000, appeal: 61, zone1: "715,000~730,000원", zone2: "680,000~700,000원", rsi: 68.1, rsiLabel: "강세", ma20: "724,000원", ma50: "693,000원", entryStatus: "RSI 과열 완화 대기", basis: "RSI14·20일 EMA·20일 VWAP·50일 EMA·ATR14 종합" }
   ],
   rotation: [
     { sector: "반도체", stage: "탄력 둔화", signal: 38, note: "삼성전자 보합·SK하이닉스 +0.44%로 지수 대비 힘이 약해짐" },
@@ -279,9 +279,9 @@ const US_OUTLOOK = {
     checks: ["SMH 거래량이 가격 상승에 동행하는지", "대표 3종목이 지수보다 강한지", "실적 가이던스와 AI 투자 흐름이 유지되는지"]
   },
   entries: [
-    { name: "엔비디아", code: "NVDA", close: 233.95, appeal: 72, priceLabel: "최근 종가", zone1: "$227.00~$231.00", zone2: "$219.00~$224.00", invalid: "$214.00 이탈", basis: "최근 종가와 당일 저가를 이용한 기본 관찰 구간" },
-    { name: "브로드컴", code: "AVGO", close: 365.20, appeal: 68, priceLabel: "최근 종가", zone1: "$354.00~$361.00", zone2: "$342.00~$350.00", invalid: "$335.00 이탈", basis: "최근 종가와 변동폭을 이용한 기본 관찰 구간" },
-    { name: "AMD", code: "AMD", close: 213.10, appeal: 64, priceLabel: "최근 종가", zone1: "$207.00~$211.00", zone2: "$199.00~$204.00", invalid: "$195.00 이탈", basis: "최근 종가와 당일 저가를 이용한 기본 관찰 구간" }
+    { name: "엔비디아", code: "NVDA", close: 233.95, appeal: 72, priceLabel: "최근 종가", zone1: "$227.00~$231.00", zone2: "$219.00~$224.00", rsi: 64.8, rsiLabel: "강세", ma20: "$228.40", ma50: "$218.70", entryStatus: "1차 구간까지 조정 대기", basis: "RSI14·20일 EMA·20일 VWAP·50일 EMA·ATR14 종합" },
+    { name: "브로드컴", code: "AVGO", close: 365.20, appeal: 68, priceLabel: "최근 종가", zone1: "$354.00~$361.00", zone2: "$342.00~$350.00", rsi: 62.1, rsiLabel: "강세", ma20: "$357.30", ma50: "$344.80", entryStatus: "1차 구간까지 조정 대기", basis: "RSI14·20일 EMA·20일 VWAP·50일 EMA·ATR14 종합" },
+    { name: "AMD", code: "AMD", close: 213.10, appeal: 64, priceLabel: "최근 종가", zone1: "$207.00~$211.00", zone2: "$199.00~$204.00", rsi: 59.7, rsiLabel: "강세", ma20: "$208.40", ma50: "$201.20", entryStatus: "1차 구간까지 조정 대기", basis: "RSI14·20일 EMA·20일 VWAP·50일 EMA·ATR14 종합" }
   ],
   rotation: [
     { sector: "유틸리티", stage: "탄력 둔화", signal: 34, note: "금리와 방어주 수요를 함께 확인" },
