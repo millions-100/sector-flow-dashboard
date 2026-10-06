@@ -112,6 +112,8 @@ function applyLivePayload(payload) {
       ...current,
       price: quote.price,
       priceDate: quote.date,
+      marketStatus: quote.marketStatus || current.marketStatus || "CLOSE",
+      tradedAt: quote.tradedAt || current.tradedAt || "",
       marketCap: quote.marketCap || current.marketCap || "—",
       volume: quote.volume || current.volume || "—",
       fiftyTwoWeekRange: quote.fiftyTwoWeekRange || current.fiftyTwoWeekRange || "—",

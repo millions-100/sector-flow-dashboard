@@ -20,6 +20,7 @@ const formatHeaderAsOf = value => {
   const [date, ...rest] = value.split(" ");
   return `${date.slice(5).replace("-", ".")} ${rest.join(" ")} 기준`.replace(/\s+/g, " ");
 };
+const formatPriceBasis = info => `${info?.priceDate || "—"} ${info?.marketStatus === "OPEN" ? "장중" : "종가"} 기준`;
 
 async function init() {
   renderLiveState();
@@ -181,7 +182,7 @@ function renderStocks() {
   $("#stockTitle").textContent = state.query ? "검색 종목" : `${state.selectedSector || ""} 대표 종목`;
   $("#stockTable").innerHTML = stocks.map(stock => {
     const info = MARKET_INTELLIGENCE.stocks[stock.code];
-    return `<tr class="stock-row" data-code="${stock.code}" data-name="${stock.name}"><td><span class="stock-name">${stock.name}</span><small class="code">${stock.code}</small></td><td class="price-cell">${info ? formatPrice(info.price) : "—"}<small>${info?.priceDate || ""}</small></td><td class="${stock.returnRate >= 0 ? "positive" : "negative"}">${fmt(stock.returnRate)}</td></tr>`;
+    return `<tr class="stock-row" data-code="${stock.code}" data-name="${stock.name}"><td><span class="stock-name">${stock.name}</span><small class="code">${stock.code}</small></td><td class="price-cell">${info ? formatPrice(info.price) : "—"}<small>${info ? formatPriceBasis(info) : ""}</small></td><td class="${stock.returnRate >= 0 ? "positive" : "negative"}">${fmt(stock.returnRate)}</td></tr>`;
   }).join("");
   document.querySelectorAll(".stock-row").forEach(element => element.onclick = () => openStockProfile(element.dataset.code, element.dataset.name));
   $("#emptyState").hidden = stocks.length > 0;
@@ -233,7 +234,7 @@ function openStockProfile(code, name) {
   $("#profileName").textContent = name;
   $("#profileCode").textContent = `${info.exchange || profile().benchmark} · ${code}`;
   $("#profilePrice").textContent = formatPrice(info.price);
-  $("#profilePriceDate").textContent = `${info.priceDate} 종가 기준`;
+  $("#profilePriceDate").textContent = formatPriceBasis(info);
   const firstMetric = state.market === "us" ? `52주 범위<b>${info.fiftyTwoWeekRange || "—"}</b>` : `시가총액<b>${info.marketCap || "—"}</b>`;
   $("#profileMetrics").innerHTML = `<span>${firstMetric}</span><span>거래량<b>${info.volume || "—"}</b></span>`;
   $("#profileDesc").textContent = info.description;
