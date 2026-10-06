@@ -105,8 +105,8 @@ function applyLivePayload(payload) {
   Object.entries(payload.quotes || {}).forEach(([code, quote]) => {
     if (!quote || quote.error || !quote.price) return;
     const current = MARKET_INTELLIGENCE.stocks[code] || {
-      description: `${quote.name}의 최신 공개 시세와 상대강도를 추적하는 종목입니다.`,
-      business: ["시장 주도주", "실시간 추적"]
+      description: `${quote.name}의 주요 사업과 제품 정보를 확인 중입니다.`,
+      business: ["사업 정보 확인 중"]
     };
     MARKET_INTELLIGENCE.stocks[code] = {
       ...current,
@@ -224,6 +224,9 @@ let MARKET_INTELLIGENCE = {
     "207940": { price: 1366000, priceDate: "2026-10-02", marketCap: "참고값", volume: "참고 시세", description: "항체의약품 생산부터 공정개발까지 제공하는 글로벌 바이오의약품 CDMO 기업입니다.", business: ["CDMO", "항체의약품", "ADC"] },
     "068270": { price: 214000, priceDate: "2026-09-25", marketCap: "참고값", volume: "샘플", description: "바이오시밀러와 항체의약품을 개발·생산·판매하는 종합 바이오 기업입니다.", business: ["바이오시밀러", "항체치료제"] },
     "326030": { price: 118900, priceDate: "2026-09-25", marketCap: "참고값", volume: "샘플", description: "중추신경계 질환 치료제 발굴부터 글로벌 상업화까지 수행하는 신약개발 기업입니다.", business: ["뇌전증", "신약개발"] },
+    "034020": { price: 79000, priceDate: "2026-10-02", marketCap: "참고값", volume: "참고 시세", description: "원전 주기기와 발전용 터빈, 해상풍력·수소 설비를 제작하고 발전소 서비스를 제공하는 에너지 기업입니다.", business: ["원전", "가스터빈", "해상풍력"] },
+    "015760": { price: 29800, priceDate: "2026-10-02", marketCap: "참고값", volume: "참고 시세", description: "국내 발전사에서 전력을 구매해 송배전망을 운영하고 가정·기업에 전기를 판매하는 공기업입니다.", business: ["전력 판매", "송배전망", "에너지 신사업"] },
+    "298040": { price: 2790000, priceDate: "2026-10-06", marketCap: "참고값", volume: "참고 시세", description: "초고압 변압기·차단기와 전력망 솔루션, 전동기·발전기 등 산업용 전기기기를 만드는 중전기 기업입니다.", business: ["초고압 변압기", "차단기", "전동기·발전기"] },
     "017670": { price: 87100, priceDate: "2026-09-23", marketCap: "18.7조원", volume: "54.7만주", description: "이동통신을 기반으로 AI 데이터센터·AI 에이전트 등 AI 인프라 사업을 확대하고 있습니다.", business: ["이동통신", "AI", "데이터센터"] },
     "030200": { price: 54500, priceDate: "2026-09-25", marketCap: "참고값", volume: "샘플", description: "유무선 통신과 B2B 디지털 전환, 클라우드·미디어 서비스를 제공하는 통신 기업입니다.", business: ["통신", "클라우드", "미디어"] },
     "032640": { price: 14900, priceDate: "2026-09-25", marketCap: "참고값", volume: "샘플", description: "이동통신과 스마트홈을 기반으로 AI·데이터센터 사업을 강화하는 통신 기업입니다.", business: ["통신", "스마트홈", "IDC"] }
