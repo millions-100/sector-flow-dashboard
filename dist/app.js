@@ -21,6 +21,16 @@ const formatHeaderAsOf = value => {
   return `${date.slice(5).replace("-", ".")} ${rest.join(" ")} 기준`.replace(/\s+/g, " ");
 };
 const formatPriceBasis = info => `${info?.priceDate || "—"} ${info?.marketStatus === "OPEN" ? "장중" : "종가"} 기준`;
+const scoreBreakdownHtml = breakdown => breakdown ? `<div class="score-breakdown">
+  ${Object.values(breakdown).map(item => `<div class="score-factor"><span>${item.label}<b>${item.points}/${item.max}</b></span><i><em style="width:${Math.min(100, item.points / item.max * 100)}%"></em></i></div>`).join("")}
+</div>` : "";
+const marketPositionHtml = position => position ? `<section class="market-position">
+  <div class="market-position-head"><span>시장점유·지위</span><b>${position.score}<small>/100</small></b></div>
+  <strong>${position.share}</strong>
+  <span class="market-category">${position.category} · ${position.asOf} · 근거 확신도 ${position.confidenceLabel}</span>
+  <p>${position.evidence}</p>
+  ${position.sourceUrl && position.sourceUrl !== "#" ? `<a href="${position.sourceUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${position.sourceLabel} 근거 보기 ↗</a>` : ""}
+</section>` : "";
 const entryCardHtml = (entry, index = null) => `<article class="entry-card${index === null ? "" : " drawer-entry-card"}"${index === null ? "" : ` data-code="${entry.code}" data-name="${entry.name}" tabindex="0" role="button"`}>
   ${index === null ? "" : `<span class="watch-rank">관찰 ${index + 1}순위</span>`}
   <div class="entry-title"><div><h3>${entry.name}</h3><span>${entry.code}</span></div><b>${entry.appeal}<small>/100</small></b></div>
@@ -28,7 +38,7 @@ const entryCardHtml = (entry, index = null) => `<article class="entry-card${inde
   <div class="entry-tech"><span>RSI14<b>${entry.rsi ?? "—"} ${entry.rsiLabel || ""}</b></span><span>20일 EMA<b>${entry.ma20 || "—"}</b></span><span>50일 EMA<b>${entry.ma50 || "—"}</b></span></div>
   <div class="entry-status">${entry.entryStatus || "기술적 관심 구간을 관찰 중"}</div>
   <div class="entry-zones"><span>1차 적정 구간<strong>${entry.zone1}</strong></span><span>2차 적정 구간<strong>${entry.zone2}</strong></span></div>
-  ${entry.watchReason ? `<p class="watch-reason">${entry.watchReason}</p>` : ""}<p>${entry.basis}</p>
+  ${entry.watchReason ? `<p class="watch-reason">${entry.watchReason}</p>` : ""}${scoreBreakdownHtml(entry.scoreBreakdown)}${marketPositionHtml(entry.marketPosition)}<p class="entry-basis">${entry.basis}</p>
 </article>`;
 
 async function init() {

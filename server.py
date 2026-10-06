@@ -111,6 +111,104 @@ SECTOR_CHECKS = {
     "조선": ["신규 수주와 선가 흐름", "원가·환율 변화가 마진에 미치는 영향", "대형 조선주 동반 상승 여부"],
 }
 
+
+def market_position(category: str, share: str, score: int, as_of: str, evidence: str, source_label: str, source_url: str, confidence: float = 0.75) -> dict:
+    """Curated structural market-position evidence used alongside daily price data.
+
+    Market definitions differ by industry, so `share` is deliberately a display
+    label rather than a value used directly in arithmetic. The normalized score
+    reflects share/rank and is discounted toward neutral when evidence confidence
+    is lower. Sources and dates stay visible in the UI.
+    """
+    return {
+        "category": category,
+        "share": share,
+        "score": score,
+        "asOf": as_of,
+        "evidence": evidence,
+        "sourceLabel": source_label,
+        "sourceUrl": source_url,
+        "confidence": confidence,
+        "confidenceLabel": "높음" if confidence >= 0.9 else "보통" if confidence >= 0.7 else "낮음",
+    }
+
+
+# 제품별 시장 정의와 기준 시점이 다른 구조적 데이터입니다. 수치가 공시된
+# 경우만 퍼센트를 사용하고, 그 외에는 공식 사업자료의 시장 지위를 보수적으로
+# 정규화합니다. 가격 스냅샷과 분리되어 있어 분기별 갱신이 쉽습니다.
+MARKET_POSITIONS = {
+    # Korea — defense / industrials
+    "012450": market_position("글로벌 자주포 수출", "50% 이상 · 세계 1위", 98, "2022 공개자료", "K9이 글로벌 자주포 수출시장의 절반 이상을 차지한 것으로 회사가 공시했습니다.", "한화에어로스페이스", "https://www.hanwhaaerospace.com/eng/media/newsroom/view.do?seq=277", 0.95),
+    "047810": market_position("국내 군용기 체계종합", "국내 유일 체계종합업체", 94, "2025 사업자료", "국산 군용기 개발·생산을 총괄하는 국내 유일의 항공기 체계종합업체 지위를 반영했습니다.", "한국항공우주 사업소개", "https://www.koreaaero.com/KO/Business/Business01.aspx", 0.85),
+    "079550": market_position("국내 정밀유도무기", "선도 사업자", 90, "2025 사업자료", "유도무기·감시정찰·지휘통제 핵심 체계의 국내 선도 지위를 반영했습니다.", "LIG넥스원 사업소개", "https://www.lignex1.com/business/precision-guided-munitions/", 0.78),
+    "064350": market_position("국내 전차 체계", "유일 양산 체계업체", 92, "2025 사업자료", "K2 전차를 포함한 국내 주력전차 설계·양산의 독보적 지위를 반영했습니다.", "현대로템 디펜스솔루션", "https://www.hyundai-rotem.co.kr/ko/business/defense/", 0.82),
+    # Korea — batteries / semiconductors
+    "373220": market_position("글로벌 EV 배터리 사용량", "약 9.5% · 세계 3위", 83, "2025 연간", "SNE Research 기반 글로벌 전기차 배터리 설치량 순위를 반영했습니다.", "SNE Research", "https://sneresearch.com/en/business/report_view/266/page/0", 0.9),
+    "006400": market_position("글로벌 EV 배터리 사용량", "약 3% · 글로벌 10위권", 63, "2025 연간", "글로벌 전기차 배터리 설치량 기준 상위 10개사 내 지위를 반영했습니다.", "SNE Research", "https://sneresearch.com/en/business/report_view/266/page/0", 0.85),
+    "003670": market_position("글로벌 양극재", "상위권 종합소재사", 70, "2025 사업자료", "양극재·음극재를 동시에 공급하는 글로벌 소수 종합 배터리 소재사의 지위를 반영했습니다.", "포스코퓨처엠 사업소개", "https://www.poscofuturem.com/en/business/batteryMaterial.do", 0.65),
+    "000660": market_position("글로벌 HBM 출하량", "62% · 세계 1위", 100, "2025년 2분기", "Counterpoint 기준 HBM 출하량 62%, 매출 57%로 1위였습니다.", "SK하이닉스 뉴스룸", "https://news.skhynix.com/en/2026-market-outlook-focus-on-the-hbm-led-memory-supercycle/", 0.98),
+    "005930": market_position("글로벌 메모리 반도체", "DRAM·NAND 최상위권", 94, "2025 업계자료", "DRAM과 NAND 모두 글로벌 최상위 공급자이며 HBM 확대 여부를 별도로 감안했습니다.", "삼성전자 반도체", "https://semiconductor.samsung.com/about-us/", 0.78),
+    "042700": market_position("HBM TC 본더", "글로벌 선도 공급사", 91, "2025 사업자료", "HBM 적층 핵심 장비인 TC 본더 시장의 선도 공급 지위를 반영했습니다.", "한미반도체", "https://www.hanmisemi.com/", 0.72),
+    # Korea — robots / shipbuilding / biotech
+    "277810": market_position("휴머노이드·연구용 로봇", "국내 기술 선도", 78, "2025 사업자료", "KAIST 휴머노이드 기술 기반의 국내 선도 지위를 반영하되 표준화된 점유율 부재로 할인했습니다.", "레인보우로보틱스", "https://rainbow-robotics.com/", 0.62),
+    "454910": market_position("협동로봇", "국내 1위권", 84, "2025 사업자료", "다양한 가반하중 제품군과 글로벌 판매망을 갖춘 국내 협동로봇 선도 지위를 반영했습니다.", "두산로보틱스", "https://www.doosanrobotics.com/", 0.68),
+    "108490": market_position("스마트 액추에이터", "글로벌 전문 선도사", 79, "2025 사업자료", "DYNAMIXEL 기반 로봇 액추에이터의 글로벌 전문시장 지위를 반영했습니다.", "로보티즈", "https://www.robotis.com/", 0.65),
+    "009540": market_position("글로벌 대형 상선 수주", "세계 최상위 조선그룹", 95, "2025 사업자료", "HD현대 조선 3사의 합산 수주·건조 역량과 LNG선 경쟁력을 반영했습니다.", "HD한국조선해양", "https://www.hdksoe.co.kr/", 0.78),
+    "042660": market_position("LNG선·특수선", "글로벌 상위 3사", 88, "2025 사업자료", "LNG 운반선과 특수선 중심의 글로벌 대형 조선사 지위를 반영했습니다.", "한화오션", "https://www.hanwhaocean.com/en/business/shipbuilding", 0.72),
+    "010140": market_position("LNG선·FLNG", "글로벌 상위 3사", 87, "2025 사업자료", "LNG선·FLNG 등 고부가 선박에서의 글로벌 상위권 지위를 반영했습니다.", "삼성중공업", "https://www.samsungshi.com/eng/business/shipbuilding.aspx", 0.72),
+    "207940": market_position("바이오의약품 CDMO 생산능력", "세계 최대 단일기업", 98, "2025 공개자료", "총 생산능력과 대형 항체의약품 공장 규모를 바탕으로 한 글로벌 1위권 CDMO 지위를 반영했습니다.", "삼성바이오로직스", "https://samsungbiologics.com/about/facts-figures", 0.9),
+    "068270": market_position("글로벌 바이오시밀러", "주요 제품 선도권", 88, "2025 사업자료", "인플릭시맙 등 주요 바이오시밀러의 미국·유럽 선도 점유 지위를 반영했습니다.", "셀트리온", "https://www.celltrion.com/en-us/business/newdrug", 0.75),
+    "326030": market_position("미국 뇌전증 신약", "성장 단계 전문기업", 72, "2025 사업자료", "세노바메이트의 미국 처방 확대를 반영하되 단일 제품 집중도를 감안했습니다.", "SK바이오팜", "https://www.skbp.com/eng/business/product", 0.65),
+    # Korea — utilities / finance / telecom / auto
+    "034020": market_position("국내 원전 주기기", "핵심 주기기 독점적 공급", 94, "2025 사업자료", "국내 원전 핵심 주기기 제작과 대형 가스터빈 국산화 지위를 반영했습니다.", "두산에너빌리티", "https://www.doosanenerbility.com/en/business/nuclear", 0.82),
+    "015760": market_position("국내 송배전·전력판매", "사실상 100% 공기업 체계", 100, "2025 사업구조", "국내 송배전망과 전력판매의 독점적 공공사업 구조를 반영했습니다.", "한국전력", "https://home.kepco.co.kr/kepco/EN/A/htmlView/ENAAHP001.do", 0.98),
+    "298040": market_position("초고압 변압기", "글로벌 상위권", 85, "2025 사업자료", "미국·유럽 초고압 변압기 시장의 생산기지와 수주 경쟁력을 반영했습니다.", "효성중공업", "https://www.hyosungheavyindustries.com/en/business/power-transformer", 0.7),
+    "105560": market_position("국내 금융그룹", "자산·고객기반 1위권", 94, "2025 경영자료", "총자산·은행 고객기반·비은행 포트폴리오를 종합한 국내 1위권 지위를 반영했습니다.", "KB금융그룹 IR", "https://www.kbfg.com/Eng/ir/presentation.jsp", 0.78),
+    "055550": market_position("국내 금융그룹", "자산 2위권", 89, "2025 경영자료", "은행·카드·증권·보험의 균형과 국내 2위권 자산 규모를 반영했습니다.", "신한금융그룹 IR", "https://www.shinhangroup.com/en/invest/irdata", 0.76),
+    "086790": market_position("국내 금융그룹", "자산 3위권", 85, "2025 경영자료", "은행·증권 중심의 국내 대형 금융그룹 지위를 반영했습니다.", "하나금융그룹 IR", "https://www.hanafn.com/en/ir/irData.do", 0.74),
+    "017670": market_position("국내 이동통신 가입자", "약 39% · 1위", 96, "2025 가입자 기준", "국내 이동통신 가입자 기준 1위 사업자 지위를 반영했습니다.", "과학기술정보통신부 통계", "https://www.msit.go.kr/bbs/list.do?sCode=user&mId=99&mPid=74", 0.9),
+    "030200": market_position("국내 이동통신 가입자", "약 23% · 2위", 84, "2025 가입자 기준", "국내 이동통신 가입자와 유선·기업통신 기반의 2위권 지위를 반영했습니다.", "과학기술정보통신부 통계", "https://www.msit.go.kr/bbs/list.do?sCode=user&mId=99&mPid=74", 0.88),
+    "032640": market_position("국내 이동통신 가입자", "약 19% · 3위", 76, "2025 가입자 기준", "국내 이동통신 가입자 기준 3위 사업자 지위를 반영했습니다.", "과학기술정보통신부 통계", "https://www.msit.go.kr/bbs/list.do?sCode=user&mId=99&mPid=74", 0.88),
+    "005380": market_position("국내 승용차 판매", "현대·기아 합산 약 70%", 94, "2025 연간", "현대차그룹의 국내 판매 지배력과 현대 브랜드의 글로벌 판매 규모를 반영했습니다.", "현대자동차 IR", "https://www.hyundai.com/worldwide/en/company/ir/ir-library/sales-results", 0.82),
+    "000270": market_position("국내 승용차 판매", "현대·기아 합산 약 70%", 92, "2025 연간", "현대차그룹의 국내 판매 지배력과 기아의 글로벌 판매 규모를 반영했습니다.", "기아 IR", "https://worldwide.kia.com/int/company/ir/ir-library/sales-results", 0.82),
+    "012330": market_position("글로벌 자동차 모듈·부품", "글로벌 상위 10위권", 88, "2025 사업자료", "섀시·콕핏·전동화 모듈의 글로벌 대형 부품사 지위를 반영했습니다.", "현대모비스", "https://www.mobis.com/en/aboutus/aboutus.do", 0.72),
+    # United States — technology / consumer / finance
+    "NVDA": market_position("PC 외장 GPU 출하", "92% · 세계 1위", 100, "2025년 3분기", "Jon Peddie Research의 외장 GPU 출하 점유율을 대표 지표로 사용했습니다.", "Jon Peddie Research", "https://www.jonpeddie.com/news/q325-pc-gpu-shipments-increased-by-2-5-from-last-quarter-which-might-suggest-a-creep-forward/", 0.95),
+    "AVGO": market_position("AI 네트워킹·커스텀 ASIC", "글로벌 선도권", 92, "2025 사업자료", "데이터센터 스위칭 반도체와 하이퍼스케일러용 커스텀 ASIC의 선도 지위를 반영했습니다.", "Broadcom Annual Reports", "https://investors.broadcom.com/financial-information/annual-reports", 0.72),
+    "AMD": market_position("PC 외장 GPU 출하", "약 7% · 세계 2위", 70, "2025년 3분기", "외장 GPU 2위와 데이터센터 가속기 도전자 지위를 함께 반영했습니다.", "Jon Peddie Research", "https://www.jonpeddie.com/news/q325-pc-gpu-shipments-increased-by-2-5-from-last-quarter-which-might-suggest-a-creep-forward/", 0.9),
+    "MSFT": market_position("글로벌 클라우드 인프라", "약 21% · 세계 2위", 95, "2025년 4분기", "Azure의 글로벌 클라우드 인프라 지출 점유율과 기업 소프트웨어 기반을 반영했습니다.", "Synergy Research 요약", "https://www.srgresearch.com/articles/cloud-market-jumps-to-330-billion-in-2025-genai-is-now-driving-half-of-the-growth", 0.9),
+    "ORCL": market_position("글로벌 클라우드 인프라", "약 3% · 상위 5위권", 70, "2025년 3분기", "OCI의 클라우드 인프라 점유율과 데이터베이스 지배력을 함께 반영했습니다.", "Oracle Annual Reports", "https://investor.oracle.com/financial-reporting/annual-reports/default.aspx", 0.7),
+    "CRM": market_position("글로벌 CRM 애플리케이션", "약 20% · 세계 1위권", 98, "2024~2025", "CRM 애플리케이션 매출 점유율의 장기 선두 지위를 반영했습니다.", "Salesforce Investor Relations", "https://investor.salesforce.com/", 0.85),
+    "META": market_position("글로벌 소셜 플랫폼 광고", "세계 2위권", 92, "2025 사업자료", "Facebook·Instagram의 이용자 규모와 디지털 광고 선도 지위를 반영했습니다.", "Meta Annual Reports", "https://investor.atmeta.com/financials/", 0.72),
+    "GOOGL": market_position("글로벌 검색", "약 90% · 세계 1위", 100, "2025 웹 검색", "Google의 글로벌 검색 쿼리 점유율과 광고·YouTube 생태계를 반영했습니다.", "Alphabet Annual Reports", "https://abc.xyz/investor/", 0.9),
+    "NFLX": market_position("글로벌 유료 스트리밍", "가입자 규모 세계 1위권", 94, "2025 사업자료", "글로벌 유료 스트리밍 가입자와 시청시간 선도 지위를 반영했습니다.", "Netflix Financial Statements", "https://ir.netflix.net/financials/quarterly-earnings/default.aspx", 0.8),
+    "AMZN": market_position("미국 전자상거래", "약 40% · 1위", 100, "2025 추정", "미국 전자상거래 1위와 AWS 클라우드 1위를 함께 반영했습니다.", "Amazon Annual Reports", "https://ir.aboutamazon.com/annual-reports-proxies-and-shareholder-letters/default.aspx", 0.86),
+    "TSLA": market_position("미국 순수전기차", "약 45% · 1위", 95, "2025 추정", "미국 BEV 판매 점유율 1위 지위를 반영하되 점유율 하락 추세를 감안했습니다.", "Tesla Annual Reports", "https://ir.tesla.com/#quarterly-disclosure", 0.8),
+    "HD": market_position("미국 홈임프루브먼트 소매", "양강 중 1위", 93, "2025 사업자료", "미국 홈임프루브먼트 소매의 최대 사업자 지위를 반영했습니다.", "Home Depot Annual Reports", "https://ir.homedepot.com/financial-reports/annual-reports", 0.78),
+    "JPM": market_position("미국 은행 총자산", "1위", 100, "2025년 말", "미국 은행 총자산과 예금·카드·투자은행의 종합 1위 지위를 반영했습니다.", "JPMorgan Annual Reports", "https://www.jpmorganchase.com/ir/annual-report", 0.92),
+    "BAC": market_position("미국 은행 총자산", "2위", 94, "2025년 말", "미국 은행 총자산과 소비자 예금의 2위 지위를 반영했습니다.", "Bank of America Annual Reports", "https://investor.bankofamerica.com/annual-reports-and-proxy-statements", 0.9),
+    "GS": market_position("글로벌 투자은행", "상위 3위권", 95, "2025 사업자료", "M&A·주식 인수와 기관금융의 글로벌 최상위 지위를 반영했습니다.", "Goldman Sachs Annual Reports", "https://www.goldmansachs.com/investor-relations/financials/current/annual-reports", 0.82),
+    # United States — industrial / health / defensive sectors
+    "GE": market_position("상업용 항공엔진 설치기반", "글로벌 양강", 98, "2025 사업자료", "CFM 합작을 포함한 대형 상업용 항공엔진 설치기반과 서비스 점유를 반영했습니다.", "GE Aerospace Annual Reports", "https://www.geaerospace.com/investor-relations", 0.82),
+    "CAT": market_position("글로벌 건설장비", "세계 1위", 98, "2025 사업자료", "매출 기준 글로벌 건설장비 1위권과 딜러망을 반영했습니다.", "Caterpillar Annual Reports", "https://investors.caterpillar.com/financials/annual-reports/default.aspx", 0.85),
+    "RTX": market_position("항공엔진·미사일·항전", "글로벌 최상위권", 95, "2025 사업자료", "Pratt & Whitney·Raytheon·Collins의 각 핵심 시장 선도 지위를 반영했습니다.", "RTX Annual Reports", "https://www.rtx.com/investors/annual-reports", 0.8),
+    "LLY": market_position("글로벌 GLP-1", "양강 중 선두권", 98, "2025 사업자료", "tirzepatide 계열의 비만·당뇨 시장 선도권을 반영했습니다.", "Eli Lilly Annual Reports", "https://investor.lilly.com/financial-information/annual-reports", 0.85),
+    "UNH": market_position("미국 민간 건강보험", "가입자 1위권", 97, "2025 사업자료", "UnitedHealthcare 가입자 기반과 Optum의 의료서비스 규모를 반영했습니다.", "UnitedHealth Annual Reports", "https://www.unitedhealthgroup.com/investors/annual-reports.html", 0.85),
+    "JNJ": market_position("글로벌 제약·의료기기", "글로벌 상위 5위권", 92, "2025 사업자료", "혁신의약품과 의료기기의 다각화된 글로벌 상위권 지위를 반영했습니다.", "Johnson & Johnson Annual Reports", "https://www.investor.jnj.com/financials/annual-reports/default.aspx", 0.78),
+    "XOM": market_position("글로벌 상장 통합에너지", "생산·시총 1위권", 96, "2025 사업자료", "상장 통합 메이저 중 생산·정제·화학 규모의 최상위 지위를 반영했습니다.", "ExxonMobil Annual Reports", "https://corporate.exxonmobil.com/investors/annual-reports", 0.8),
+    "CVX": market_position("글로벌 상장 통합에너지", "생산·시총 2위권", 91, "2025 사업자료", "상장 통합 메이저 중 업스트림·LNG·정제의 2위권 규모를 반영했습니다.", "Chevron Annual Reports", "https://www.chevron.com/investors/financial-information", 0.78),
+    "COP": market_position("미국 독립계 E&P", "생산량 1위권", 89, "2025 사업자료", "독립계 탐사·생산기업 중 글로벌 최대 규모의 생산 기반을 반영했습니다.", "ConocoPhillips Annual Reports", "https://www.conocophillips.com/investor-relations/company-reports/", 0.76),
+    "NEE": market_position("미국 재생에너지 발전", "세계 최대급", 97, "2025 사업자료", "풍력·태양광 및 배터리 저장 개발 규모의 글로벌 선도 지위를 반영했습니다.", "NextEra Energy Reports", "https://www.investor.nexteraenergy.com/financial-information/annual-reports-and-proxy-statements", 0.82),
+    "SO": market_position("미국 규제 유틸리티", "대형 상위권", 90, "2025 사업자료", "미 남동부 고객 기반과 원전·가스·재생 발전 자산 규모를 반영했습니다.", "Southern Company Reports", "https://investor.southerncompany.com/financials/annual-reports/default.aspx", 0.76),
+    "DUK": market_position("미국 규제 유틸리티", "고객수 상위권", 91, "2025 사업자료", "다주(州) 전력·가스 고객 기반과 규제자산 규모를 반영했습니다.", "Duke Energy Reports", "https://investors.duke-energy.com/financials/annual-reports-and-proxy/default.aspx", 0.76),
+    "WMT": market_position("미국 식료품 소매", "약 25% · 1위", 100, "2025 추정", "미국 식료품과 종합 소매의 압도적 1위 지위를 반영했습니다.", "Walmart Annual Reports", "https://stock.walmart.com/financials/annual-reports-and-proxies/default.aspx", 0.88),
+    "COST": market_position("미국 창고형 할인점", "1위권", 96, "2025 사업자료", "회원제 창고형 할인점의 매출·회원 기반 선도 지위를 반영했습니다.", "Costco Annual Reports", "https://investor.costco.com/financials/annual-reports-and-proxy-statements/default.aspx", 0.82),
+    "PG": market_position("글로벌 생활용품", "다수 카테고리 1~2위", 95, "2025 사업자료", "세제·기저귀·그루밍 등 핵심 소비재 카테고리의 글로벌 선도 지위를 반영했습니다.", "P&G Annual Reports", "https://us.pg.com/annualreport2025/", 0.8),
+    "LIN": market_position("글로벌 산업용 가스", "약 30% · 세계 1위", 100, "2025 업계자료", "산업용 가스의 글로벌 최대 사업자 지위를 반영했습니다.", "Linde Annual Reports", "https://www.linde.com/investors/financial-reports", 0.85),
+    "NEM": market_position("글로벌 금 생산", "상장사 1위권", 96, "2025 사업자료", "금 생산량과 매장량 기준 글로벌 최대 상장 금광기업 지위를 반영했습니다.", "Newmont Reports", "https://www.newmont.com/investors/reports-and-filings/default.aspx", 0.82),
+    "FCX": market_position("글로벌 구리 생산", "상장사 상위 5위권", 92, "2025 사업자료", "Grasberg 등 대형 광산을 보유한 글로벌 상위 구리 생산자 지위를 반영했습니다.", "Freeport-McMoRan Reports", "https://investors.fcx.com/investors/financial-information/annual-reports-and-proxy/default.aspx", 0.8),
+}
+
 _cache_lock = threading.Lock()
 _cache = {"kr": {"at": 0.0, "payload": None}, "us": {"at": 0.0, "payload": None}}
 
@@ -403,12 +501,25 @@ def make_entry(quote: dict, sector_return: float, benchmark_return: float, curre
     zone2_low = max(0.01, zone2_mid - zone2_width)
     zone2_high = max(zone2_low, min(zone1_low * 0.995, zone2_mid + zone2_width))
 
-    rsi_fit = max(0, 20 - abs(rsi14 - 50) * 0.6)
-    sector_bonus = max(-8, min(12, (sector_return - benchmark_return) * 2.4))
-    stock_bonus = max(-8, min(12, (float(quote.get("returnRate") or 0) - benchmark_return) * 2))
-    trend_bonus = 6 if close >= ema50 else -4
-    overheat_penalty = max(0, (rsi14 - 72) * 0.7)
-    appeal = round(max(40, min(95, 48 + rsi_fit + sector_bonus + stock_bonus + trend_bonus - overheat_penalty)))
+    stock_return = float(quote.get("returnRate") or 0)
+    position = MARKET_POSITIONS.get(
+        quote["code"],
+        market_position("핵심 사업", "점유율 확인 중", 50, "미확인", "비교 가능한 공개 점유율 자료를 확인 중입니다.", "기업 공시 확인 필요", "#", 0.4),
+    )
+
+    # 100점 관찰 점수: 기술적 위치 35 + 상대강도 25 + 시장지위 25 + 추세 15.
+    # 시장지위의 근거 확신도가 낮을수록 중립값(50) 쪽으로 할인합니다.
+    technical_score = max(0, min(100, 100 - abs(rsi14 - 50) * 2.0 - max(0, rsi14 - 70) * 2.5))
+    relative_score = max(0, min(100, 50 + (sector_return - benchmark_return) * 7 + (stock_return - benchmark_return) * 5))
+    trend_score = 35 + (35 if close >= ema20 else 0) + (30 if close >= ema50 else 0)
+    market_score = position["score"] * position["confidence"] + 50 * (1 - position["confidence"])
+    score_breakdown = {
+        "technical": {"label": "기술적 위치", "score": round(technical_score), "points": round(technical_score * 0.35, 1), "max": 35},
+        "relative": {"label": "상대강도", "score": round(relative_score), "points": round(relative_score * 0.25, 1), "max": 25},
+        "market": {"label": "시장점유·지위", "score": round(market_score), "points": round(market_score * 0.25, 1), "max": 25},
+        "trend": {"label": "추세", "score": round(trend_score), "points": round(trend_score * 0.15, 1), "max": 15},
+    }
+    appeal = round(sum(item["points"] for item in score_breakdown.values()))
     if currency == "USD":
         zone1 = usd_range(zone1_low, zone1_high)
         zone2 = usd_range(zone2_low, zone2_high)
@@ -450,7 +561,9 @@ def make_entry(quote: dict, sector_return: float, benchmark_return: float, curre
         "ma50": ma50_label,
         "entryStatus": entry_status,
         "watchReason": " · ".join(watch_signals),
-        "basis": "RSI14·20일 EMA·20일 VWAP·50일 EMA·ATR14를 종합한 기술적 적정 구간",
+        "basis": "기술적 위치 35 · 상대강도 25 · 시장점유·지위 25 · 추세 15를 합산한 관찰 점수",
+        "scoreBreakdown": score_breakdown,
+        "marketPosition": position,
     }
 
 

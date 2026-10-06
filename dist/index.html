@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07111f">
   <title>섹터 플로우 — 오늘의 시장 주도주</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2307111f'/%3E%3Cpath d='M6 22l6-6 4 3 9-10' fill='none' stroke='%23ff5c72' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=20261006-4">
+  <link rel="stylesheet" href="styles.css?v=20261006-5">
 </head>
 <body>
   <header class="topbar">
@@ -29,7 +29,7 @@
         <div class="check-block"><span class="focus-label">진입 전 확인할 것</span><ul id="focusChecks"></ul><p class="advice-note">특정 종목의 매수 지시가 아닌 시장 관찰용 분석입니다.</p></div>
       </div>
       <div class="entry-section">
-        <div class="entry-heading"><div><p class="eyebrow">ENTRY MAP</p><h2>대표 종목 기술적 적정 구간</h2></div><p>RSI·이동평균·거래량 가격·변동폭을 종합한 구간입니다.</p></div>
+        <div class="entry-heading"><div><p class="eyebrow">ENTRY MAP</p><h2>대표 종목 기술적 적정 구간</h2></div><p>가격 지표와 핵심 사업의 시장점유·지위를 함께 봅니다.</p></div>
         <div class="entry-grid" id="entryGrid"></div>
         <p class="entry-disclaimer">적정 구간은 RSI14, 20일 EMA·VWAP, 50일 EMA, ATR14를 종합해 계산합니다. 현재가에 단순 비율을 적용하지 않아 비교적 완만하게 변하지만, 신규 일봉이 쌓이면 지표에 따라 갱신됩니다. 목표가나 수익 보장이 아닙니다.</p>
       </div>
@@ -78,11 +78,11 @@
     <button class="drawer-close" id="drawerClose" aria-label="닫기">×</button>
     <p class="eyebrow">SECTOR DEEP DIVE</p><h2 id="drawerTitle"></h2><div class="drawer-return" id="drawerReturn"></div>
     <p class="drawer-desc" id="drawerDesc"></p>
-    <section class="drawer-watch"><div class="drawer-subhead"><div><p class="eyebrow">TECHNICAL WATCHLIST</p><h3>지금 유의깊게 볼 종목</h3></div><span id="drawerWatchCount"></span></div><div id="drawerEntries" class="drawer-entry-list"></div><p class="drawer-disclaimer">관찰 점수와 적정 구간은 RSI14·EMA·VWAP·ATR 및 섹터 상대강도를 종합한 참고값이며 매수 지시가 아닙니다.</p></section>
+    <section class="drawer-watch"><div class="drawer-subhead"><div><p class="eyebrow">TECHNICAL + MARKET POSITION</p><h3>지금 유의깊게 볼 종목</h3></div><span id="drawerWatchCount"></span></div><div id="drawerEntries" class="drawer-entry-list"></div><p class="drawer-disclaimer">관찰 점수는 기술적 위치 35점·상대강도 25점·시장점유 및 지위 25점·추세 15점으로 계산합니다. 시장점유 데이터는 제품별 정의와 기준 시점이 다르므로 근거 링크와 확신도를 함께 확인하세요. 매수 지시가 아닙니다.</p></section>
     <section class="drawer-period"><h3>선택 기간 대표 종목 흐름</h3><div id="drawerStocks" class="drawer-stocks"></div></section>
   </aside>
-  <div class="modal-backdrop" id="modal"><div class="modal"><button id="modalClose" aria-label="닫기">×</button><p class="eyebrow">DATA GUIDE</p><h2>한국·미국 시장을 같은 방식으로 비교합니다</h2><p id="dataGuideCopy">페이지가 열리면 기준지수와 추적 종목 시세, 상위 섹터 관련 뉴스를 확인합니다. 최신 호출에 실패하면 마지막 검증 데이터가 표시됩니다.</p><ul><li id="dataGuidePrice">한국: 네이버 금융 · 미국: Yahoo Finance 공개 차트</li><li>뉴스: Google 뉴스 공개 RSS · 제목과 시장 맥락 요약</li><li>적정 구간: RSI14·20일 EMA/VWAP·50일 EMA·ATR14 종합</li><li>상승 색상: 빨강 · 하락 색상: 파랑</li></ul></div></div>
+  <div class="modal-backdrop" id="modal"><div class="modal"><button id="modalClose" aria-label="닫기">×</button><p class="eyebrow">DATA GUIDE</p><h2>한국·미국 시장을 같은 방식으로 비교합니다</h2><p id="dataGuideCopy">페이지가 열리면 기준지수와 추적 종목 시세, 상위 섹터 관련 뉴스를 확인합니다. 최신 호출에 실패하면 마지막 검증 데이터가 표시됩니다.</p><ul><li id="dataGuidePrice">한국: 네이버 금융 · 미국: Yahoo Finance 공개 차트</li><li>뉴스: Google 뉴스 공개 RSS · 제목과 시장 맥락 요약</li><li>적정 구간: RSI14·20일 EMA/VWAP·50일 EMA·ATR14 종합</li><li>관찰 점수: 기술적 위치 35 · 상대강도 25 · 시장점유·지위 25 · 추세 15</li><li>시장지위: 공식 자료·산업통계를 기준일과 확신도와 함께 표시</li><li>상승 색상: 빨강 · 하락 색상: 파랑</li></ul></div></div>
   <div class="modal-backdrop" id="stockModal"><div class="modal stock-modal"><button id="stockModalClose" aria-label="닫기">×</button><p class="eyebrow">STOCK PROFILE</p><h2 id="profileName"></h2><p class="profile-code" id="profileCode"></p><div class="profile-price"><strong id="profilePrice"></strong><span id="profilePriceDate"></span></div><div class="profile-metrics" id="profileMetrics"></div><p id="profileDesc"></p><div class="business-tags" id="profileTags"></div><p class="source-note">가격은 페이지를 연 시점에 확인한 최근 공개 시세입니다. 거래소 체결가와 지연 또는 차이가 있을 수 있습니다.</p></div></div>
-  <script src="data.js?v=20261006-4"></script><script src="app.js?v=20261006-4"></script>
+  <script src="data.js?v=20261006-5"></script><script src="app.js?v=20261006-5"></script>
 </body>
 </html>
