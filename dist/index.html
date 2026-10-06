@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#07111f">
   <title>섹터 플로우 — 오늘의 시장 주도주</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2307111f'/%3E%3Cpath d='M6 22l6-6 4 3 9-10' fill='none' stroke='%23ff5c72' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=20261005-3">
+  <link rel="stylesheet" href="styles.css?v=20261006-1">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#"><span class="brand-mark">↗</span><span>섹터 플로우</span><small>SECTOR FLOW</small></a>
     <div class="market-switch" role="tablist" aria-label="분석 시장 선택"><button class="active" type="button" data-market="kr" role="tab" aria-selected="true">한국</button><button type="button" data-market="us" role="tab" aria-selected="false">미국</button></div>
     <nav class="nav"><button class="nav-btn active">대시보드</button><button class="nav-btn" id="timelineJump">타임라인</button><button class="nav-btn" id="aboutBtn">데이터 안내</button></nav>
-    <div class="market-state"><span class="pulse"></span><span id="liveStatus">최신 데이터 확인 중</span><b id="liveDate">—</b><button id="refreshBtn" type="button" aria-label="최신 데이터 새로고침" title="최신 데이터 새로고침">↻</button></div>
+    <div class="market-state"><span class="pulse"></span><span id="liveStatus" role="status" aria-live="polite">최신 데이터 확인 중</span><b id="liveDate">—</b><button id="refreshBtn" type="button" aria-label="최신 데이터 새로고침" title="최신 데이터 새로고침">↻</button><span class="refresh-feedback" id="refreshFeedback" role="status" aria-live="polite"></span></div>
   </header>
 
   <main class="shell">
@@ -81,6 +81,6 @@
   </aside>
   <div class="modal-backdrop" id="modal"><div class="modal"><button id="modalClose" aria-label="닫기">×</button><p class="eyebrow">DATA GUIDE</p><h2>한국·미국 시장을 같은 방식으로 비교합니다</h2><p id="dataGuideCopy">페이지가 열리면 기준지수와 추적 종목 시세, 상위 섹터 관련 뉴스를 확인합니다. 최신 호출에 실패하면 마지막 검증 데이터가 표시됩니다.</p><ul><li id="dataGuidePrice">한국: 네이버 금융 · 미국: Yahoo Finance 공개 차트</li><li>뉴스: Google 뉴스 공개 RSS · 제목과 시장 맥락 요약</li><li>적정 구간: RSI14·20일 EMA/VWAP·50일 EMA·ATR14 종합</li><li>상승 색상: 빨강 · 하락 색상: 파랑</li></ul></div></div>
   <div class="modal-backdrop" id="stockModal"><div class="modal stock-modal"><button id="stockModalClose" aria-label="닫기">×</button><p class="eyebrow">STOCK PROFILE</p><h2 id="profileName"></h2><p class="profile-code" id="profileCode"></p><div class="profile-price"><strong id="profilePrice"></strong><span id="profilePriceDate"></span></div><div class="profile-metrics" id="profileMetrics"></div><p id="profileDesc"></p><div class="business-tags" id="profileTags"></div><p class="source-note">가격은 페이지를 연 시점에 확인한 최근 공개 시세입니다. 거래소 체결가와 지연 또는 차이가 있을 수 있습니다.</p></div></div>
-  <script src="data.js?v=20261005-3"></script><script src="app.js?v=20261005-3"></script>
+  <script src="data.js?v=20261006-1"></script><script src="app.js?v=20261006-1"></script>
 </body>
 </html>

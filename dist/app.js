@@ -98,13 +98,22 @@ function renderLiveState() {
   const status = $("#liveStatus");
   const date = $("#liveDate");
   const button = $("#refreshBtn");
+  const feedback = $("#refreshFeedback");
   if (!status) return;
   status.textContent = LIVE_STATE.message;
   date.textContent = DAILY_OUTLOOK.asOf?.slice(0, 10).replaceAll("-", ".") || "—";
   const box = status.closest(".market-state");
   box.classList.toggle("is-loading", LIVE_STATE.status === "loading");
   box.classList.toggle("is-fallback", LIVE_STATE.status === "fallback");
-  if (button) button.disabled = LIVE_STATE.status === "loading";
+  if (button) {
+    button.disabled = LIVE_STATE.status === "loading";
+    button.textContent = LIVE_STATE.status === "loading" ? "↻" : LIVE_STATE.refreshResult === "failed" ? "!" : LIVE_STATE.refreshResult ? "✓" : "↻";
+    button.title = LIVE_STATE.message;
+  }
+  if (feedback) {
+    feedback.textContent = LIVE_STATE.refreshResult ? LIVE_STATE.message : "";
+    feedback.className = `refresh-feedback${LIVE_STATE.refreshResult ? ` show ${LIVE_STATE.refreshResult}` : ""}`;
+  }
 }
 
 function renderOutlook() {
@@ -246,6 +255,7 @@ function bindEvents() {
   $("#sortSelect").onchange = event => { state.sort = event.target.value; renderStocks(); };
   $("#refreshBtn").onclick = async () => {
     LIVE_STATE.status = "loading";
+    LIVE_STATE.refreshResult = null;
     LIVE_STATE.message = "데이터 새로고침 중";
     renderLiveState();
     state.data = await marketRepository.getMarketDays(true);

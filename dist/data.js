@@ -85,6 +85,8 @@ let SAMPLE_MARKET_DATA = KOREA_SAMPLE_MARKET_DATA;
 const LIVE_STATE = {
   status: "loading",
   requestedAt: null,
+  lastCheckedAt: null,
+  refreshResult: null,
   provider: "네이버 금융 · Google 뉴스",
   message: "최신 데이터 확인 중"
 };
@@ -126,7 +128,9 @@ function applyLivePayload(payload) {
 }
 
 async function refreshLiveData(force = false) {
+  const previousRequestedAt = LIVE_STATE.requestedAt;
   LIVE_STATE.status = "loading";
+  LIVE_STATE.refreshResult = null;
   LIVE_STATE.message = force ? "데이터 새로고침 중" : "최신 데이터 확인 중";
   try {
     let payload = null;
@@ -148,16 +152,25 @@ async function refreshLiveData(force = false) {
     applyLivePayload(payload);
     LIVE_STATE.status = "live";
     LIVE_STATE.requestedAt = payload.requestedAt;
+    LIVE_STATE.lastCheckedAt = new Date().toISOString();
     LIVE_STATE.provider = payload.provider || LIVE_STATE.provider;
-    LIVE_STATE.message = payload.snapshot
-      ? "GitHub 자동 갱신 반영"
-      : payload.marketDay.date === new Date().toLocaleDateString("sv-SE", { timeZone: ACTIVE_MARKET === "us" ? "America/New_York" : "Asia/Seoul" })
-        ? "오늘 데이터 반영"
-        : "최근 거래일 반영";
+    if (force) {
+      const changed = Boolean(previousRequestedAt && previousRequestedAt !== payload.requestedAt);
+      LIVE_STATE.refreshResult = changed ? "updated" : "current";
+      const checkedTime = new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Seoul" }).format(new Date());
+      LIVE_STATE.message = changed ? `새 데이터 반영 · ${checkedTime}` : `최신 상태 확인 · ${checkedTime}`;
+    } else {
+      LIVE_STATE.message = payload.snapshot
+        ? "GitHub 자동 갱신 반영"
+        : payload.marketDay.date === new Date().toLocaleDateString("sv-SE", { timeZone: ACTIVE_MARKET === "us" ? "America/New_York" : "Asia/Seoul" })
+          ? "오늘 데이터 반영"
+          : "최근 거래일 반영";
+    }
   } catch (error) {
     console.warn("실시간 데이터 갱신 실패, 검증된 기본 데이터를 사용합니다.", error);
     LIVE_STATE.status = "fallback";
-    LIVE_STATE.message = "기본 데이터 사용 중";
+    LIVE_STATE.refreshResult = force ? "failed" : null;
+    LIVE_STATE.message = force ? "새로고침 실패 · 잠시 후 다시 시도" : "기본 데이터 사용 중";
   }
   return LIVE_STATE;
 }
