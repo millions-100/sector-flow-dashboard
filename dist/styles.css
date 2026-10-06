@@ -19,3 +19,19 @@
 .market-switch{display:flex;gap:3px;margin-left:22px;padding:3px;background:#0d1d2d;border:1px solid var(--line);border-radius:10px;flex-shrink:0}.market-switch button{border:0;background:transparent;color:#71869a;border-radius:7px;padding:6px 11px;font-size:12px;font-weight:800;cursor:pointer}.market-switch button.active{background:#263c53;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25)}.topbar .nav{margin-left:34px}.legend b{font-weight:600}
 @media(max-width:800px){.topbar{padding:0 12px}.brand{font-size:16px}.brand-mark{width:31px;height:31px}.market-switch{margin-left:10px}.market-switch button{padding:6px 9px}.market-state{margin-left:auto}.market-state #liveStatus{display:none}}
 @media(max-width:430px){.brand>span:nth-child(2){display:none}.market-switch{margin-left:8px}}
+
+.drawer{width:min(760px,96vw)}
+.drawer-watch{border-top:1px solid var(--line);margin-top:26px;padding-top:24px}
+.drawer-subhead{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:14px}
+.drawer-subhead h3,.drawer-period h3{font-size:18px;margin:0}
+.drawer-subhead>span{color:var(--mint);font-size:12px;font-weight:800}
+.drawer-entry-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.drawer-entry-card{position:relative;cursor:pointer;transition:.2s;outline:none}
+.drawer-entry-card:hover,.drawer-entry-card:focus{border-color:#536d87;transform:translateY(-2px)}
+.watch-rank{display:inline-block;color:#ff9dab;background:rgba(255,92,114,.09);border:1px solid rgba(255,92,114,.24);border-radius:20px;padding:4px 8px;font-size:9px;font-weight:800;margin-bottom:10px}
+.watch-reason{color:#9fb2c4!important;margin:0 0 8px!important;font-weight:700}
+.drawer-disclaimer{color:#60768b;font-size:10px;line-height:1.55;margin:12px 0 0}
+.drawer-empty{grid-column:1/-1;border:1px dashed #30475f;border-radius:12px;padding:24px;color:#7f94a9;text-align:center;font-size:13px;line-height:1.6}
+.drawer-period{border-top:1px solid var(--line);margin-top:26px;padding-top:22px}
+.drawer-period .drawer-stocks{margin-top:12px}
+@media(max-width:700px){.drawer{padding:66px 18px 28px}.drawer h2{font-size:29px}.drawer-return{font-size:34px;margin:14px 0}.drawer-entry-list{grid-template-columns:1fr}.drawer-entry-card{min-width:0}.drawer-subhead{align-items:flex-start}.entry-current strong{font-size:18px}.entry-zones>span{align-items:flex-start;gap:8px}.entry-zones strong{text-align:right}}

@@ -43,18 +43,18 @@ KR_SECTORS = {
         ("006400", "삼성SDI"),
         ("003670", "포스코퓨처엠"),
     ],
-    "반도체": [("000660", "SK하이닉스"), ("005930", "삼성전자")],
-    "로봇": [("277810", "레인보우로보틱스"), ("454910", "두산로보틱스")],
+    "반도체": [("000660", "SK하이닉스"), ("005930", "삼성전자"), ("042700", "한미반도체")],
+    "로봇": [("277810", "레인보우로보틱스"), ("454910", "두산로보틱스"), ("108490", "로보티즈")],
     "조선": [
         ("009540", "HD한국조선해양"),
         ("042660", "한화오션"),
         ("010140", "삼성중공업"),
     ],
-    "바이오": [("207940", "삼성바이오로직스"), ("068270", "셀트리온")],
-    "전력·에너지": [("034020", "두산에너빌리티"), ("015760", "한국전력")],
-    "금융": [("105560", "KB금융"), ("055550", "신한지주")],
-    "통신": [("017670", "SK텔레콤"), ("030200", "KT")],
-    "자동차": [("005380", "현대차"), ("000270", "기아")],
+    "바이오": [("207940", "삼성바이오로직스"), ("068270", "셀트리온"), ("326030", "SK바이오팜")],
+    "전력·에너지": [("034020", "두산에너빌리티"), ("015760", "한국전력"), ("298040", "효성중공업")],
+    "금융": [("105560", "KB금융"), ("055550", "신한지주"), ("086790", "하나금융지주")],
+    "통신": [("017670", "SK텔레콤"), ("030200", "KT"), ("032640", "LG유플러스")],
+    "자동차": [("005380", "현대차"), ("000270", "기아"), ("012330", "현대모비스")],
 }
 
 US_SECTORS = {
@@ -403,9 +403,12 @@ def make_entry(quote: dict, sector_return: float, benchmark_return: float, curre
     zone2_low = max(0.01, zone2_mid - zone2_width)
     zone2_high = max(zone2_low, min(zone1_low * 0.995, zone2_mid + zone2_width))
 
-    rsi_fit = max(0, 22 - abs(rsi14 - 50) * 0.55)
-    trend_bonus = 5 if close >= ema50 else -3
-    appeal = round(max(40, min(92, 50 + (sector_return - benchmark_return) * 3 + rsi_fit + trend_bonus)))
+    rsi_fit = max(0, 20 - abs(rsi14 - 50) * 0.6)
+    sector_bonus = max(-8, min(12, (sector_return - benchmark_return) * 2.4))
+    stock_bonus = max(-8, min(12, (float(quote.get("returnRate") or 0) - benchmark_return) * 2))
+    trend_bonus = 6 if close >= ema50 else -4
+    overheat_penalty = max(0, (rsi14 - 72) * 0.7)
+    appeal = round(max(40, min(95, 48 + rsi_fit + sector_bonus + stock_bonus + trend_bonus - overheat_penalty)))
     if currency == "USD":
         zone1 = usd_range(zone1_low, zone1_high)
         zone2 = usd_range(zone2_low, zone2_high)
@@ -425,11 +428,19 @@ def make_entry(quote: dict, sector_return: float, benchmark_return: float, curre
     else:
         entry_status = "관심 구간 아래 · 추세 회복 확인"
     rsi_label = "과열" if rsi14 >= 70 else "강세" if rsi14 >= 58 else "중립" if rsi14 >= 42 else "과매도권"
+    watch_signals = [
+        "시장 대비 상대강도" if float(quote.get("returnRate") or 0) > benchmark_return else "상대강도 회복 확인",
+        "20일 추세 위" if close >= ema20 else "20일 EMA 조정권",
+        f"RSI {rsi_label}",
+    ]
+    price_date = quote.get("date", "")
+    price_state = "최근 종가" if quote.get("marketStatus") == "CLOSE" else "장중 현재가"
     return {
         "name": quote["name"],
         "code": quote["code"],
         "close": close,
-        "priceLabel": "최근 종가" if quote.get("marketStatus") == "CLOSE" else "장중 현재가",
+        "priceLabel": f"{price_date} {price_state}".strip(),
+        "priceDate": price_date,
         "appeal": appeal,
         "zone1": zone1,
         "zone2": zone2,
@@ -438,8 +449,25 @@ def make_entry(quote: dict, sector_return: float, benchmark_return: float, curre
         "ma20": ma20_label,
         "ma50": ma50_label,
         "entryStatus": entry_status,
+        "watchReason": " · ".join(watch_signals),
         "basis": "RSI14·20일 EMA·20일 VWAP·50일 EMA·ATR14를 종합한 기술적 적정 구간",
     }
+
+
+def build_technical_entries(sectors: list[dict], quotes: dict[str, dict], benchmark_return: float, currency: str = "KRW") -> dict[str, list[dict]]:
+    technical_entries = {}
+    for sector in sectors:
+        entries = []
+        for stock in sector["stocks"]:
+            quote = quotes.get(stock["code"], {})
+            if "price" not in quote:
+                continue
+            entry_quote = {**quote, "name": stock["name"]}
+            entries.append(make_entry(entry_quote, sector["returnRate"], benchmark_return, currency))
+        entries.sort(key=lambda entry: (entry["appeal"], entry["rsi"] < 70), reverse=True)
+        if entries:
+            technical_entries[sector["name"]] = entries[:5]
+    return technical_entries
 
 
 def build_kr_payload() -> dict:
@@ -509,6 +537,7 @@ def build_kr_payload() -> dict:
 
     as_of = kospi["tradedAt"].replace("T", " ")[:16]
     market_day = {"date": kospi["date"], "kospi": kospi["returnRate"], "sectors": sectors}
+    technical_entries = build_technical_entries(sectors, quotes, kospi["returnRate"])
     positives = [f"{q['name']} {q['returnRate']:+.2f}%" for q in sorted(top_quotes, key=lambda q: q["returnRate"], reverse=True)]
     outlook = {
         "asOf": as_of,
@@ -521,7 +550,7 @@ def build_kr_payload() -> dict:
             "positives": positives,
             "checks": SECTOR_CHECKS.get(top["name"], ["대표 종목의 동반 강세가 유지되는지", "거래량이 가격 상승에 동행하는지", "관련 뉴스가 실적으로 연결되는지"]),
         },
-        "entries": [make_entry(q, top["returnRate"], kospi["returnRate"]) for q in sorted(top_quotes, key=lambda q: q["returnRate"], reverse=True)[:3]],
+        "entries": technical_entries.get(top["name"], [])[:3],
         "rotation": stages,
         "sources": [
             {"label": "KOSPI 최신 시세", "url": "https://finance.naver.com/sise/sise_index.naver?code=KOSPI"},
@@ -537,6 +566,7 @@ def build_kr_payload() -> dict:
         "requestedAt": datetime.now().astimezone().isoformat(timespec="seconds"),
         "marketDay": market_day,
         "quotes": quotes,
+        "technicalEntries": technical_entries,
         "news": news,
         "outlook": outlook,
     }
@@ -697,6 +727,7 @@ def build_us_payload() -> dict:
 
     positives = [f"{q['name']} {q['returnRate']:+.2f}%" for q in sorted(top_quotes, key=lambda q: q["returnRate"], reverse=True)]
     latest_date = latest_day["date"]
+    technical_entries = build_technical_entries(latest_day["sectors"], charts, latest_day["kospi"], "USD")
     outlook = {
         "asOf": f"{latest_date} 16:00 ET",
         "market": {"name": "S&P 500", "returnRate": latest_day["kospi"], "close": f"{benchmark['price']:,.2f}", "breadth": "SPY 및 섹터 ETF 기준"},
@@ -708,7 +739,7 @@ def build_us_payload() -> dict:
             "positives": positives,
             "checks": ["섹터 ETF 거래량이 가격 상승에 동행하는지", "대표 3종목이 지수보다 강한 흐름을 유지하는지", "뉴스 재료가 다음 실적 가이던스에 반영되는지"],
         },
-        "entries": [make_entry(q, top["returnRate"], latest_day["kospi"], "USD") for q in sorted(top_quotes, key=lambda q: q["returnRate"], reverse=True)[:3]],
+        "entries": technical_entries.get(top["name"], [])[:3],
         "rotation": stages,
         "sources": [
             {"label": "S&P 500 ETF 시세", "url": "https://finance.yahoo.com/quote/SPY/"},
@@ -725,6 +756,7 @@ def build_us_payload() -> dict:
         "marketDay": latest_day,
         "marketDays": market_days,
         "quotes": quotes,
+        "technicalEntries": technical_entries,
         "news": news,
         "outlook": outlook,
     }

@@ -21,6 +21,15 @@ const formatHeaderAsOf = value => {
   return `${date.slice(5).replace("-", ".")} ${rest.join(" ")} 기준`.replace(/\s+/g, " ");
 };
 const formatPriceBasis = info => `${info?.priceDate || "—"} ${info?.marketStatus === "OPEN" ? "장중" : "종가"} 기준`;
+const entryCardHtml = (entry, index = null) => `<article class="entry-card${index === null ? "" : " drawer-entry-card"}"${index === null ? "" : ` data-code="${entry.code}" data-name="${entry.name}" tabindex="0" role="button"`}>
+  ${index === null ? "" : `<span class="watch-rank">관찰 ${index + 1}순위</span>`}
+  <div class="entry-title"><div><h3>${entry.name}</h3><span>${entry.code}</span></div><b>${entry.appeal}<small>/100</small></b></div>
+  <div class="entry-current"><span>현재 가격<small>${entry.priceLabel || "최근 확인 가격"}</small></span><strong>${formatPrice(entry.close)}</strong></div>
+  <div class="entry-tech"><span>RSI14<b>${entry.rsi ?? "—"} ${entry.rsiLabel || ""}</b></span><span>20일 EMA<b>${entry.ma20 || "—"}</b></span><span>50일 EMA<b>${entry.ma50 || "—"}</b></span></div>
+  <div class="entry-status">${entry.entryStatus || "기술적 관심 구간을 관찰 중"}</div>
+  <div class="entry-zones"><span>1차 적정 구간<strong>${entry.zone1}</strong></span><span>2차 적정 구간<strong>${entry.zone2}</strong></span></div>
+  ${entry.watchReason ? `<p class="watch-reason">${entry.watchReason}</p>` : ""}<p>${entry.basis}</p>
+</article>`;
 
 async function init() {
   renderLiveState();
@@ -131,7 +140,7 @@ function renderOutlook() {
   $("#focusThesis").textContent = view.focus.thesis;
   $("#focusPositives").innerHTML = view.focus.positives.map(item => `<span>${item}</span>`).join("");
   $("#focusChecks").innerHTML = view.focus.checks.map(item => `<li>${item}</li>`).join("");
-  $("#entryGrid").innerHTML = view.entries.map(entry => `<article class="entry-card"><div class="entry-title"><div><h3>${entry.name}</h3><span>${entry.code}</span></div><b>${entry.appeal}<small>/100</small></b></div><div class="entry-current"><span>현재 가격<small>${entry.priceLabel || "최근 확인 가격"}</small></span><strong>${formatPrice(entry.close)}</strong></div><div class="entry-tech"><span>RSI14<b>${entry.rsi ?? "—"} ${entry.rsiLabel || ""}</b></span><span>20일 EMA<b>${entry.ma20 || "—"}</b></span><span>50일 EMA<b>${entry.ma50 || "—"}</b></span></div><div class="entry-status">${entry.entryStatus || "기술적 관심 구간을 관찰 중"}</div><div class="entry-zones"><span>1차 적정 구간<strong>${entry.zone1}</strong></span><span>2차 적정 구간<strong>${entry.zone2}</strong></span></div><p>${entry.basis}</p></article>`).join("");
+  $("#entryGrid").innerHTML = view.entries.map(entry => entryCardHtml(entry)).join("");
   $("#rotationFlow").innerHTML = view.rotation.map((item, index) => `<div class="rotation-step ${item.stage === "현재 주도" ? "leader-step" : ""}"><div class="rotation-top"><span>${String(index + 1).padStart(2, "0")}</span><b>${item.stage}</b></div><h3>${item.sector}</h3><div class="signal-track"><i style="width:${item.signal}%"></i></div><p>${item.note}</p></div>`).join("");
   $("#outlookSources").innerHTML = `<span>분석 근거</span>${view.sources.map(source => `<a href="${source.url}" target="_blank" rel="noopener">${source.label}</a>`).join("")}`;
 }
@@ -213,9 +222,21 @@ function renderHeatmap() {
 function openDrawer(name) {
   const sector = rankedSectors().find(item => item.name === name);
   if (!sector) return;
+  const aliases = { "방산": "방산·우주" };
+  const technicalName = MARKET_TECHNICALS[name] ? name : aliases[name];
+  const entries = (MARKET_TECHNICALS[technicalName] || DAILY_OUTLOOK.entries.filter(entry => sector.stocks.some(stock => stock.code === entry.code))).slice(0, 5);
   $("#drawerTitle").textContent = sector.name;
   $("#drawerReturn").textContent = `${sector.score}점 · ${fmt(sector.returnRate)}`;
   $("#drawerDesc").textContent = `선택 기간 ${profile().benchmark} 하락일 기준 시장 대비 ${fmt(sector.excess)} 초과 수익을 기록했고, 비교 거래일 중 ${Math.round(sector.persistence)}%에서 상승 신호가 포착됐습니다.`;
+  $("#drawerWatchCount").textContent = entries.length ? `${entries.length}개 종목` : "지표 준비 중";
+  $("#drawerEntries").innerHTML = entries.length
+    ? entries.map((entry, index) => entryCardHtml(entry, index)).join("")
+    : `<div class="drawer-empty">이 섹터의 최신 기술 지표를 불러오는 중입니다. 잠시 후 새로고침해 주세요.</div>`;
+  document.querySelectorAll("#drawerEntries .drawer-entry-card").forEach(card => {
+    const open = () => openStockProfile(card.dataset.code, card.dataset.name);
+    card.onclick = open;
+    card.onkeydown = event => { if (event.key === "Enter" || event.key === " ") open(); };
+  });
   $("#drawerStocks").innerHTML = sector.stocks.map(stock => `<div class="drawer-stock"><span><b>${stock.name}</b><small>${stock.code}</small></span><strong class="${stock.returnRate >= 0 ? "positive" : "negative"}">${fmt(stock.returnRate)}</strong></div>`).join("");
   $("#drawer").classList.add("open");
   $("#drawerBackdrop").classList.add("open");

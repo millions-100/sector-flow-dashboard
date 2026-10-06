@@ -12,7 +12,7 @@ const KOREA_SAMPLE_MARKET_DATA = [
   {
     date: "2026-09-25", kospi: -1.82,
     sectors: [
-      { name: "방산", returnRate: 3.84, stocks: [{ name: "한화에어로스페이스", code: "012450", returnRate: 5.42 }, { name: "현대로템", code: "064350", returnRate: 3.18 }, { name: "LIG넥스원", code: "079550", returnRate: 2.74 }] },
+      { name: "방산·우주", returnRate: 3.84, stocks: [{ name: "한화에어로스페이스", code: "012450", returnRate: 5.42 }, { name: "현대로템", code: "064350", returnRate: 3.18 }, { name: "LIG넥스원", code: "079550", returnRate: 2.74 }] },
       { name: "조선", returnRate: 2.61, stocks: [{ name: "HD한국조선해양", code: "009540", returnRate: 3.91 }, { name: "한화오션", code: "042660", returnRate: 2.63 }, { name: "삼성중공업", code: "010140", returnRate: 1.86 }] },
       { name: "바이오", returnRate: 1.73, stocks: [{ name: "삼성바이오로직스", code: "207940", returnRate: 2.41 }, { name: "셀트리온", code: "068270", returnRate: 1.84 }, { name: "SK바이오팜", code: "326030", returnRate: 0.93 }] },
       { name: "통신", returnRate: 0.92, stocks: [{ name: "SK텔레콤", code: "017670", returnRate: 1.24 }, { name: "KT", code: "030200", returnRate: 0.88 }, { name: "LG유플러스", code: "032640", returnRate: 0.63 }] }
@@ -45,7 +45,7 @@ const KOREA_SAMPLE_MARKET_DATA = [
     date: "2026-09-19", kospi: -0.38,
     sectors: [
       { name: "조선", returnRate: 1.92, stocks: [{ name: "한화오션", code: "042660", returnRate: 3.14 }, { name: "HD현대중공업", code: "329180", returnRate: 1.62 }, { name: "삼성중공업", code: "010140", returnRate: 1.01 }] },
-      { name: "방산", returnRate: 1.41, stocks: [{ name: "LIG넥스원", code: "079550", returnRate: 2.33 }, { name: "한화시스템", code: "272210", returnRate: 1.24 }, { name: "한국항공우주", code: "047810", returnRate: 0.66 }] },
+      { name: "방산·우주", returnRate: 1.41, stocks: [{ name: "LIG넥스원", code: "079550", returnRate: 2.33 }, { name: "한화시스템", code: "272210", returnRate: 1.24 }, { name: "한국항공우주", code: "047810", returnRate: 0.66 }] },
       { name: "통신", returnRate: 0.57, stocks: [{ name: "KT", code: "030200", returnRate: 0.89 }, { name: "SK텔레콤", code: "017670", returnRate: 0.52 }, { name: "LG유플러스", code: "032640", returnRate: 0.31 }] }
     ]
   },
@@ -53,7 +53,7 @@ const KOREA_SAMPLE_MARKET_DATA = [
     date: "2026-09-18", kospi: -2.07,
     sectors: [
       { name: "금", returnRate: 3.72, stocks: [{ name: "고려아연", code: "010130", returnRate: 4.61 }, { name: "엘컴텍", code: "037950", returnRate: 3.28 }, { name: "영풍", code: "000670", returnRate: 2.24 }] },
-      { name: "방산", returnRate: 2.18, stocks: [{ name: "한화에어로스페이스", code: "012450", returnRate: 3.11 }, { name: "현대로템", code: "064350", returnRate: 2.06 }, { name: "LIG넥스원", code: "079550", returnRate: 1.37 }] },
+      { name: "방산·우주", returnRate: 2.18, stocks: [{ name: "한화에어로스페이스", code: "012450", returnRate: 3.11 }, { name: "현대로템", code: "064350", returnRate: 2.06 }, { name: "LIG넥스원", code: "079550", returnRate: 1.37 }] },
       { name: "통신", returnRate: 0.76, stocks: [{ name: "SK텔레콤", code: "017670", returnRate: 1.03 }, { name: "KT", code: "030200", returnRate: 0.71 }, { name: "LG유플러스", code: "032640", returnRate: 0.43 }] }
     ]
   },
@@ -126,6 +126,10 @@ function applyLivePayload(payload) {
   Object.entries(payload.news || {}).forEach(([sector, articles]) => {
     if (articles?.length) MARKET_INTELLIGENCE.news[sector] = articles;
   });
+  if (payload.technicalEntries) {
+    MARKET_TECHNICALS = payload.technicalEntries;
+    MARKET_PROFILES[ACTIVE_MARKET].technicals = MARKET_TECHNICALS;
+  }
   Object.assign(DAILY_OUTLOOK, payload.outlook || {});
 }
 
@@ -187,6 +191,7 @@ const marketRepository = {
     const profile = MARKET_PROFILES[ACTIVE_MARKET];
     SAMPLE_MARKET_DATA = profile.data;
     MARKET_INTELLIGENCE = profile.intelligence;
+    MARKET_TECHNICALS = profile.technicals || {};
     DAILY_OUTLOOK = profile.outlook;
     LIVE_STATE.provider = profile.provider;
     LIVE_STATE.status = "loading";
@@ -200,6 +205,7 @@ const marketRepository = {
 };
 
 // 실제 연동 시 quote/news API 응답으로 교체하는 시장 정보 계층입니다.
+let MARKET_TECHNICALS = {};
 let MARKET_INTELLIGENCE = {
   stocks: {
     "047810": { price: 133500, priceDate: "2026-10-02", marketCap: "13.0조원", volume: "25.1만주", description: "군용기·위성·항공기 구조물을 개발·생산하는 국내 대표 항공우주 기업입니다.", business: ["군용기", "위성", "항공우주"] },
@@ -223,7 +229,7 @@ let MARKET_INTELLIGENCE = {
     "032640": { price: 14900, priceDate: "2026-09-25", marketCap: "참고값", volume: "샘플", description: "이동통신과 스마트홈을 기반으로 AI·데이터센터 사업을 강화하는 통신 기업입니다.", business: ["통신", "스마트홈", "IDC"] }
   },
   news: {
-    "방산": [
+    "방산·우주": [
       { date: "2026-09-15", source: "한화에어로스페이스 IR", title: "글로벌 투자자 대상 기업설명회 진행", summary: "싱가포르·홍콩에서 글로벌 투자자를 만나 방산 수출과 사업 현황을 설명했습니다. 수주잔고와 해외 생산 확대가 업종의 중기 모멘텀으로 해석됩니다.", url: "https://www.hanwhaaerospace.com/kor/ir/ir-event.do" },
       { date: "2026-10-06", source: "KADEX 2026", title: "국내 주요 방산기업, KADEX 참가 예정", summary: "한화에어로스페이스·현대로템·LIG넥스원 등 주요 기업이 방위산업전에 참가해 신제품과 수출 역량을 공개할 예정입니다.", url: "https://kospik.com/market/schedule/" }
     ],
@@ -308,8 +314,8 @@ const US_OUTLOOK = {
 };
 
 const MARKET_PROFILES = {
-  kr: { key: "kr", label: "한국", benchmark: "KOSPI", currency: "KRW", data: KOREA_SAMPLE_MARKET_DATA, intelligence: KOREA_INTELLIGENCE, outlook: KOREA_OUTLOOK, provider: "네이버 금융 · Google 뉴스" },
-  us: { key: "us", label: "미국", benchmark: "S&P 500", currency: "USD", data: US_SAMPLE_MARKET_DATA, intelligence: US_INTELLIGENCE, outlook: US_OUTLOOK, provider: "Yahoo Finance 공개 차트 · Google News" }
+  kr: { key: "kr", label: "한국", benchmark: "KOSPI", currency: "KRW", data: KOREA_SAMPLE_MARKET_DATA, intelligence: KOREA_INTELLIGENCE, technicals: {}, outlook: KOREA_OUTLOOK, provider: "네이버 금융 · Google 뉴스" },
+  us: { key: "us", label: "미국", benchmark: "S&P 500", currency: "USD", data: US_SAMPLE_MARKET_DATA, intelligence: US_INTELLIGENCE, technicals: {}, outlook: US_OUTLOOK, provider: "Yahoo Finance 공개 차트 · Google News" }
 };
 
 let ACTIVE_MARKET = "kr";
