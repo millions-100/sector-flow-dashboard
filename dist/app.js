@@ -15,6 +15,11 @@ const profile = () => marketRepository.profile;
 const formatPrice = value => profile().currency === "USD"
   ? `$${Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   : `${Number(value).toLocaleString("ko-KR")}원`;
+const formatHeaderAsOf = value => {
+  if (!value) return "—";
+  const [date, ...rest] = value.split(" ");
+  return `${date.slice(5).replace("-", ".")} ${rest.join(" ")} 기준`.replace(/\s+/g, " ");
+};
 
 async function init() {
   renderLiveState();
@@ -101,7 +106,7 @@ function renderLiveState() {
   const feedback = $("#refreshFeedback");
   if (!status) return;
   status.textContent = LIVE_STATE.message;
-  date.textContent = DAILY_OUTLOOK.asOf?.slice(0, 10).replaceAll("-", ".") || "—";
+  date.textContent = formatHeaderAsOf(DAILY_OUTLOOK.asOf);
   const box = status.closest(".market-state");
   box.classList.toggle("is-loading", LIVE_STATE.status === "loading");
   box.classList.toggle("is-fallback", LIVE_STATE.status === "fallback");

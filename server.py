@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 
 ROOT = Path(__file__).resolve().parent
@@ -209,18 +210,32 @@ def fetch_yahoo_chart(symbol: str, period: str = "6mo") -> tuple[str, dict]:
     meta = result["meta"]
     quote = result["indicators"]["quote"][0]
     bars = []
-    for index, timestamp in enumerate(result.get("timestamp", [])):
+    timestamps = result.get("timestamp", [])
+    exchange_timezone = ZoneInfo(meta.get("exchangeTimezoneName", "America/New_York"))
+    for index, timestamp in enumerate(timestamps):
         close = quote.get("close", [None])[index]
         if close is None:
-            continue
+            is_latest_session = index == len(timestamps) - 1 and meta.get("regularMarketPrice") is not None
+            if not is_latest_session:
+                continue
+            close = float(meta["regularMarketPrice"])
+            open_price = float(meta.get("regularMarketOpen") or close)
+            high_price = float(meta.get("regularMarketDayHigh") or close)
+            low_price = float(meta.get("regularMarketDayLow") or close)
+            volume = int(meta.get("regularMarketVolume") or 0)
+        else:
+            open_price = float(quote.get("open", [close])[index] or close)
+            high_price = float(quote.get("high", [close])[index] or close)
+            low_price = float(quote.get("low", [close])[index] or close)
+            volume = int(quote.get("volume", [0])[index] or 0)
         bars.append(
             {
-                "date": datetime.fromtimestamp(timestamp, tz=datetime.now().astimezone().tzinfo).strftime("%Y-%m-%d"),
+                "date": datetime.fromtimestamp(timestamp, tz=exchange_timezone).strftime("%Y-%m-%d"),
                 "close": float(close),
-                "open": float(quote.get("open", [close])[index] or close),
-                "high": float(quote.get("high", [close])[index] or close),
-                "low": float(quote.get("low", [close])[index] or close),
-                "volume": int(quote.get("volume", [0])[index] or 0),
+                "open": open_price,
+                "high": high_price,
+                "low": low_price,
+                "volume": volume,
             }
         )
     for index, bar in enumerate(bars):
