@@ -121,10 +121,32 @@ def stock_lines(market: dict, limit: int = 3) -> list[str]:
         close = entry.get("close", 0)
         price = f"{close:,.0f}원" if currency == "KRW" else f"${close:,.2f}"
         lines.append(
-            f"• {entry.get('name')} {price} · {entry.get('appeal', '-')}점\n"
-            f"  1차 {entry.get('zone1', '-')} / 2차 {entry.get('zone2', '-')}"
+            f"• {entry.get('name')}({entry.get('code', '-')}) 현재 {price} · "
+            f"적정가격 {entry.get('zone1', '-')} · 관심 {entry.get('appeal', '-')}점"
         )
     return lines
+
+
+def clean_title(article: dict, limit: int = 78) -> str:
+    title = article.get("title", "").strip()
+    source = article.get("source", "").strip()
+    if source:
+        suffix = f" - {source}"
+        if title.endswith(suffix):
+            title = title[: -len(suffix)]
+    return title if len(title) <= limit else f"{title[: limit - 1].rstrip()}…"
+
+
+def rotation_lines(market: dict, stages: tuple[str, ...]) -> list[str]:
+    rows = [
+        row
+        for row in market.get("outlook", {}).get("rotation", [])
+        if row.get("stage") in stages
+    ]
+    return [
+        f"• {row.get('sector')} · {row.get('stage')} · 신호 {row.get('signal', '-')}"
+        for row in rows[:2]
+    ]
 
 
 def build_message(snapshot: dict) -> str:
@@ -135,38 +157,45 @@ def build_message(snapshot: dict) -> str:
     kr_market = kr.get("outlook", {}).get("market", {})
     us_market = us.get("outlook", {}).get("market", {})
     us_day = us.get("marketDay", {})
+    kr_focus = kr.get("outlook", {}).get("focus", {})
+    us_focus = us.get("outlook", {}).get("focus", {})
 
     lines = [
-        "📊 오늘의 섹터 플로우 브리핑",
+        "📊 오늘의 섹터 핵심 브리핑",
         f"기준 시각: {now}",
         "",
-        "시장 흐름",
+        "핵심 판단",
+        f"• 한국: {kr_focus.get('sector', '확인 중')} · {kr_focus.get('status', '-')} · {kr_focus.get('score', '-')}점",
+        f"• 미국: {us_focus.get('sector', '확인 중')} · {us_focus.get('status', '-')} · {us_focus.get('score', '-')}점",
+        "",
+        "시장 배경",
         f"• KOSPI {kr_market.get('close', '-')} · {signed(kr_market.get('returnRate', 0))}",
         f"• S&P 500 {us_market.get('close', '-')} · {signed(us_day.get('kospi', us_market.get('returnRate', 0)))}",
         "",
-        "미국 섹터 순환 상위",
-        *top_sector_lines(us),
-        "",
-        "오늘의 핵심 뉴스",
+        "중요 뉴스 요약",
     ]
 
     news = ranked_news(markets)
     if news:
-        for index, article in enumerate(news, 1):
+        for article in news[:3]:
             score = article["importance"]
-            lines.extend(
-                [
-                    f"{index}. [{score}점·{importance_label(score)}] {article.get('title')}",
-                    f"   {article['market']} · {article['sector']} · {article.get('source', '-')} · {article.get('date', '-')}",
-                    f"   {article.get('url', '')}",
-                ]
+            lines.append(
+                f"• [{importance_label(score)} {score}] {article['sector']} — {clean_title(article)}"
             )
     else:
         lines.append("• 최근 공개 뉴스가 없어 시장 흐름만 표시합니다.")
 
-    lines.extend(["", "한국 관심 종목"])
+    lines.extend(["", "오늘 집중할 섹터"])
+    lines.extend(rotation_lines(kr, ("현재 주도", "확산 중")) or ["• 한국: 신호 확인 중"])
+    lines.extend(rotation_lines(us, ("현재 주도", "확산 중")) or ["• 미국: 신호 확인 중"])
+
+    lines.extend(["", "앞으로 관심 가질 섹터"])
+    lines.extend(rotation_lines(kr, ("다음 후보",)) or ["• 한국: 다음 후보 확인 중"])
+    lines.extend(rotation_lines(us, ("다음 후보",)) or ["• 미국: 다음 후보 확인 중"])
+
+    lines.extend(["", "한국 관심 주식 · 단일 적정가격"])
     lines.extend(stock_lines(kr) or ["• 최신 가격 확인 중"])
-    lines.extend(["", "미국 관심 종목"])
+    lines.extend(["", "미국 관심 주식 · 단일 적정가격"])
     lines.extend(stock_lines(us) or ["• 최신 가격 확인 중"])
 
     us_sectors = us.get("marketDay", {}).get("sectors", [])
@@ -175,7 +204,7 @@ def build_message(snapshot: dict) -> str:
     lines.extend(
         [
             "",
-            f"한 줄 결론: 현재 흐름은 {leader} 우위, {laggard}는 상대강도 회복 확인이 필요합니다.",
+            f"한 줄 결론: 현재는 {leader}에 집중하고, {laggard}는 회복 신호 전까지 기다립니다.",
             "",
             f"대시보드: {DASHBOARD_URL}",
         ]
