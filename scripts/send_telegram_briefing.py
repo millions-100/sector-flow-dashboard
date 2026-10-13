@@ -188,6 +188,33 @@ def extend_spaced(lines: list[str], items: list[str]) -> None:
         lines.append(item)
 
 
+def daily_comment(news: list[dict], kr: dict, us: dict) -> str:
+    news_scores: dict[str, int] = {}
+    for article in news:
+        sector = article.get("sector", "")
+        news_scores[sector] = news_scores.get(sector, 0) + int(article.get("importance", 0))
+    news_leader = max(news_scores, key=news_scores.get) if news_scores else "주요 뉴스 섹터"
+
+    kr_leader = kr.get("outlook", {}).get("focus", {}).get("sector", "한국 주도 섹터")
+    us_leader = us.get("outlook", {}).get("focus", {}).get("sector", "미국 주도 섹터")
+    next_sectors = []
+    for market in (kr, us):
+        for row in market.get("outlook", {}).get("rotation", []):
+            if row.get("stage") == "다음 후보" and row.get("sector"):
+                next_sectors.append(row["sector"])
+
+    if news_leader in {kr_leader, us_leader}:
+        view = f"뉴스와 가격 흐름이 모두 {news_leader}를 가리킵니다. 적정가격 진입 종목을 우선 보세요."
+    else:
+        view = (
+            f"뉴스는 {news_leader}에 집중됐지만 실제 상대강도 선두는 한국 {kr_leader}, 미국 {us_leader}입니다. "
+            "뉴스만 따른 추격보다 가격 흐름이 확인된 종목을 우선 보세요."
+        )
+    if next_sectors:
+        view += f" 다음 순환 후보는 {', '.join(next_sectors[:2])}입니다."
+    return view
+
+
 def build_message(snapshot: dict) -> str:
     markets = snapshot.get("markets", {})
     kr = markets.get("kr", {})
@@ -252,6 +279,9 @@ def build_message(snapshot: dict) -> str:
             f"한 줄 결론: 현재는 {leader}에 집중하고, {laggard}는 회복 신호 전까지 기다립니다.",
             "",
             f"대시보드: {DASHBOARD_URL}",
+            "",
+            "오늘의 한마디",
+            daily_comment(news[:3], kr, us),
         ]
     )
     return "\n".join(lines)
