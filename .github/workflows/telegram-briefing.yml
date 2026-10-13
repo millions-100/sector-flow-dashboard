@@ -1,0 +1,37 @@
+name: Send Telegram Sector Briefing
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 매일 오전 8시 30분 KST = 전날 오후 11시 30분 UTC
+    - cron: "30 23 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telegram-sector-briefing
+  cancel-in-progress: true
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Refresh latest market snapshot
+        id: refresh
+        continue-on-error: true
+        run: python3 server.py --snapshot telegram-snapshot.json
+
+      - name: Use last published snapshot when refresh fails
+        if: steps.refresh.outcome == 'failure'
+        run: cp dist/market-snapshot.json telegram-snapshot.json
+
+      - name: Send briefing to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python3 scripts/send_telegram_briefing.py --snapshot telegram-snapshot.json
