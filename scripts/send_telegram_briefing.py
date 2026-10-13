@@ -113,16 +113,43 @@ def top_sector_lines(market: dict, limit: int = 3) -> list[str]:
     return [f"{index}. {row['name']} {signed(row.get('returnRate', 0))}" for index, row in enumerate(rows, 1)]
 
 
+def prioritized_entries(market: dict, limit: int = 3) -> list[tuple[str, dict]]:
+    stage_bonus = {"현재 주도": 18, "확산 중": 12, "다음 후보": 6}
+    stages = {
+        row.get("sector"): row.get("stage")
+        for row in market.get("outlook", {}).get("rotation", [])
+    }
+    ranked = []
+    technicals = market.get("technicalEntries", {})
+    if not technicals:
+        focus = market.get("outlook", {}).get("focus", {}).get("sector", "")
+        technicals = {focus: market.get("outlook", {}).get("entries", [])}
+    for sector, entries in technicals.items():
+        for entry in entries:
+            in_range = bool(entry.get("isInFairRange")) or "도달" in entry.get("entryStatus", "")
+            priority = float(entry.get("appeal", 0)) + stage_bonus.get(stages.get(sector), 0)
+            priority += 24 if in_range else 0
+            if float(entry.get("rsi", 50)) >= 70:
+                priority -= 10
+            ranked.append((priority, sector, entry))
+    ranked.sort(key=lambda row: row[0], reverse=True)
+    return [(sector, entry) for _, sector, entry in ranked[:limit]]
+
+
 def stock_lines(market: dict, limit: int = 3) -> list[str]:
-    entries = market.get("outlook", {}).get("entries", [])[:limit]
+    entries = prioritized_entries(market, limit)
     currency = market.get("currency", "")
     lines = []
-    for entry in entries:
+    for rank, (sector, entry) in enumerate(entries, 1):
         close = entry.get("close", 0)
         price = f"{close:,.0f}원" if currency == "KRW" else f"${close:,.2f}"
+        in_range = bool(entry.get("isInFairRange")) or "도달" in entry.get("entryStatus", "")
+        price_status = "✅ 적정가격 진입" if in_range else "⏳ 적정가격 대기"
         lines.append(
-            f"• {entry.get('name')}({entry.get('code', '-')}) 현재 {price} · "
-            f"적정가격 {entry.get('zone1', '-')} · 관심 {entry.get('appeal', '-')}점"
+            f"{rank}. {entry.get('name')} ({entry.get('code', '-')}) · {sector}\n"
+            f"   현재 {price}\n"
+            f"   적정가격 {entry.get('zone1', '-')} · {price_status}\n"
+            f"   관심 {entry.get('appeal', '-')}점 · RSI {entry.get('rsi', '-')}"
         )
     return lines
 
@@ -149,6 +176,18 @@ def rotation_lines(market: dict, stages: tuple[str, ...]) -> list[str]:
     ]
 
 
+def dated_index_line(name: str, close: str, return_rate: float, date: str) -> str:
+    short_date = date[5:].replace("-", "/") if len(date) >= 10 else date or "기준일 확인 중"
+    return f"• {name} {close} · {signed(return_rate)}\n  {short_date} 종가 · 전 거래일 대비"
+
+
+def extend_spaced(lines: list[str], items: list[str]) -> None:
+    for index, item in enumerate(items):
+        if index:
+            lines.append("")
+        lines.append(item)
+
+
 def build_message(snapshot: dict) -> str:
     markets = snapshot.get("markets", {})
     kr = markets.get("kr", {})
@@ -157,6 +196,7 @@ def build_message(snapshot: dict) -> str:
     kr_market = kr.get("outlook", {}).get("market", {})
     us_market = us.get("outlook", {}).get("market", {})
     us_day = us.get("marketDay", {})
+    nasdaq_100 = us_market.get("nasdaq100", {})
     kr_focus = kr.get("outlook", {}).get("focus", {})
     us_focus = us.get("outlook", {}).get("focus", {})
 
@@ -169,16 +209,21 @@ def build_message(snapshot: dict) -> str:
         f"• 미국: {us_focus.get('sector', '확인 중')} · {us_focus.get('status', '-')} · {us_focus.get('score', '-')}점",
         "",
         "시장 배경",
-        f"• KOSPI {kr_market.get('close', '-')} · {signed(kr_market.get('returnRate', 0))}",
-        f"• S&P 500 {us_market.get('close', '-')} · {signed(us_day.get('kospi', us_market.get('returnRate', 0)))}",
+        dated_index_line("KOSPI", kr_market.get("close", "-"), kr_market.get("returnRate", 0), kr.get("marketDay", {}).get("date", "")),
+        "",
+        dated_index_line("S&P 500", us_market.get("close", "-"), us_market.get("returnRate", us_day.get("kospi", 0)), us_market.get("date", us_day.get("date", ""))),
+        "",
+        dated_index_line("NASDAQ 100", nasdaq_100.get("close", "-"), nasdaq_100.get("returnRate", 0), nasdaq_100.get("date", us_day.get("date", ""))),
         "",
         "중요 뉴스 요약",
     ]
 
     news = ranked_news(markets)
     if news:
-        for article in news[:3]:
+        for index, article in enumerate(news[:3]):
             score = article["importance"]
+            if index:
+                lines.append("")
             lines.append(
                 f"• [{importance_label(score)} {score}] {article['sector']} — {clean_title(article)}"
             )
@@ -193,10 +238,10 @@ def build_message(snapshot: dict) -> str:
     lines.extend(rotation_lines(kr, ("다음 후보",)) or ["• 한국: 다음 후보 확인 중"])
     lines.extend(rotation_lines(us, ("다음 후보",)) or ["• 미국: 다음 후보 확인 중"])
 
-    lines.extend(["", "한국 관심 주식 · 단일 적정가격"])
-    lines.extend(stock_lines(kr) or ["• 최신 가격 확인 중"])
-    lines.extend(["", "미국 관심 주식 · 단일 적정가격"])
-    lines.extend(stock_lines(us) or ["• 최신 가격 확인 중"])
+    lines.extend(["", "한국 관심 주식 · 우선순위"])
+    extend_spaced(lines, stock_lines(kr) or ["• 최신 가격 확인 중"])
+    lines.extend(["", "미국 관심 주식 · 우선순위"])
+    extend_spaced(lines, stock_lines(us) or ["• 최신 가격 확인 중"])
 
     us_sectors = us.get("marketDay", {}).get("sectors", [])
     leader = us_sectors[0].get("name", "확인 중") if us_sectors else "확인 중"

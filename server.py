@@ -589,6 +589,8 @@ def make_entry(quote: dict, sector_return: float, benchmark_return: float, curre
         "appeal": appeal,
         "zone1": zone1,
         "zone2": zone2,
+        "isInFairRange": zone1_low <= close <= zone1_high,
+        "fairPriceDistance": round(0 if zone1_low <= close <= zone1_high else (close / zone1_high - 1) * 100, 1),
         "rsi": round(rsi14, 1),
         "rsiLabel": rsi_label,
         "ma20": ma20_label,
@@ -775,7 +777,7 @@ def fetch_us_news(sector: str, etf: str, limit: int = 2) -> list[dict]:
 
 
 def build_us_payload() -> dict:
-    tickers = {"SPY"}
+    tickers = {"SPY", "^GSPC", "^NDX"}
     for config in US_SECTORS.values():
         tickers.add(config["etf"])
         tickers.update(code for code, _ in config["stocks"])
@@ -794,6 +796,8 @@ def build_us_payload() -> dict:
     benchmark = charts.get("SPY", {})
     if not benchmark.get("history"):
         raise RuntimeError("S&P 500 benchmark data is unavailable")
+    sp_500_index = charts.get("^GSPC", {})
+    nasdaq_100 = charts.get("^NDX", {})
 
     return_maps = {
         ticker: {bar["date"]: bar for bar in chart.get("history", [])}
@@ -884,10 +888,24 @@ def build_us_payload() -> dict:
 
     positives = [f"{q['name']} {q['returnRate']:+.2f}%" for q in sorted(top_quotes, key=lambda q: q["returnRate"], reverse=True)]
     latest_date = latest_day["date"]
+    sp_500_latest = (sp_500_index.get("history") or [{}])[-1]
+    nasdaq_latest = (nasdaq_100.get("history") or [{}])[-1]
     technical_entries = build_technical_entries(latest_day["sectors"], charts, latest_day["kospi"], "USD")
     outlook = {
         "asOf": f"{latest_date} 16:00 ET",
-        "market": {"name": "S&P 500", "returnRate": latest_day["kospi"], "close": f"{benchmark['price']:,.2f}", "breadth": "SPY 및 섹터 ETF 기준"},
+        "market": {
+            "name": "S&P 500",
+            "returnRate": sp_500_latest.get("returnRate", latest_day["kospi"]),
+            "close": f"{sp_500_index.get('price', benchmark['price']):,.2f}",
+            "date": sp_500_index.get("date", latest_date),
+            "breadth": "SPY 및 섹터 ETF 기준",
+            "nasdaq100": {
+                "name": "NASDAQ 100",
+                "returnRate": nasdaq_latest.get("returnRate", 0),
+                "close": f"{nasdaq_100.get('price', 0):,.2f}" if nasdaq_100.get("price") else "-",
+                "date": nasdaq_100.get("date", latest_date),
+            },
+        },
         "focus": {
             "sector": top["name"],
             "score": focus_score,
