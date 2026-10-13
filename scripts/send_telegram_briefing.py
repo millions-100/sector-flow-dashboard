@@ -161,6 +161,7 @@ def clean_title(article: dict, limit: int = 78) -> str:
         suffix = f" - {source}"
         if title.endswith(suffix):
             title = title[: -len(suffix)]
+    title = title.strip(" \"'“”‘’")
     return title if len(title) <= limit else f"{title[: limit - 1].rstrip()}…"
 
 
@@ -188,12 +189,31 @@ def extend_spaced(lines: list[str], items: list[str]) -> None:
         lines.append(item)
 
 
+def news_impact_reason(article: dict) -> str:
+    title = article.get("title", "").lower()
+    if any(word in title for word in ("실적", "순익", "영업이익", "매출", "earnings", "profit", "revenue", "guidance")):
+        return "실적·이익 전망을 언급한 부분이 섹터의 이익 추정치 개선 가능성을 보여주는 재료입니다."
+    if any(word in title for word in ("수주", "계약", "수출", "order", "contract", "export")):
+        return "수주·계약을 언급한 부분이 향후 매출 가시성을 높일 수 있는 재료입니다."
+    if any(word in title for word in ("금리", "물가", "고용", "연준", "rate", "inflation", "jobs", "fed")):
+        return "금리·경기 기대를 바꾸는 부분이 성장주 할인율과 섹터 자금 흐름에 영향을 주는 재료입니다."
+    if any(word in title for word in ("관세", "규제", "정책", "정부", "보조금", "tariff", "regulation", "policy")):
+        return "정책·규제 변화 부분이 섹터의 비용과 수요 전망을 바꿀 수 있는 재료입니다."
+    if any(word in title for word in ("수요", "판매", "출하", "demand", "sales", "shipments")):
+        return "수요·판매 흐름을 언급한 부분이 업황 회복 여부를 판단하는 직접적인 근거입니다."
+    if any(word in title for word in ("상승", "급등", "질주", "신고가", "winning streak", "rally", "record high")):
+        return "주가 모멘텀을 언급한 부분이 해당 섹터로 자금이 유입되고 있음을 보여주는 단기 재료입니다."
+    return "업황 기대와 자금 흐름 변화를 언급한 부분이 해당 섹터를 다시 평가하게 만드는 재료입니다."
+
+
 def daily_comment(news: list[dict], kr: dict, us: dict) -> str:
     news_scores: dict[str, int] = {}
     for article in news:
         sector = article.get("sector", "")
         news_scores[sector] = news_scores.get(sector, 0) + int(article.get("importance", 0))
     news_leader = max(news_scores, key=news_scores.get) if news_scores else "주요 뉴스 섹터"
+    leader_articles = [article for article in news if article.get("sector") == news_leader]
+    lead_article = max(leader_articles, key=lambda row: row.get("importance", 0)) if leader_articles else {}
 
     kr_leader = kr.get("outlook", {}).get("focus", {}).get("sector", "한국 주도 섹터")
     us_leader = us.get("outlook", {}).get("focus", {}).get("sector", "미국 주도 섹터")
@@ -203,16 +223,24 @@ def daily_comment(news: list[dict], kr: dict, us: dict) -> str:
             if row.get("stage") == "다음 후보" and row.get("sector"):
                 next_sectors.append(row["sector"])
 
-    if news_leader in {kr_leader, us_leader}:
-        view = f"뉴스와 가격 흐름이 모두 {news_leader}를 가리킵니다. 적정가격 진입 종목을 우선 보세요."
-    else:
-        view = (
-            f"뉴스는 {news_leader}에 집중됐지만 실제 상대강도 선두는 한국 {kr_leader}, 미국 {us_leader}입니다. "
-            "뉴스만 따른 추격보다 가격 흐름이 확인된 종목을 우선 보세요."
+    if lead_article:
+        evidence = (
+            f"• 뉴스 근거\n"
+            f"  “{clean_title(lead_article, 68)}”\n"
+            f"  {news_impact_reason(lead_article)}"
         )
+    else:
+        evidence = "• 뉴스 근거\n  중요도 높은 신규 뉴스가 부족해 가격 흐름을 우선 확인합니다."
+
+    if news_leader in {kr_leader, us_leader}:
+        price_check = f"• 가격 확인\n  {news_leader}가 실제 상대강도 선두와 겹쳐 뉴스가 가격으로 확인되고 있습니다."
+        judgment = "• 판단\n  적정가격에 진입한 해당 섹터 종목을 우선 보세요."
+    else:
+        price_check = f"• 가격 확인\n  상대강도 선두는 한국 {kr_leader}, 미국 {us_leader}로 뉴스 섹터와 다릅니다."
+        judgment = "• 판단\n  뉴스만 따른 추격보다 가격 흐름이 확인된 종목을 우선 보세요."
     if next_sectors:
-        view += f" 다음 순환 후보는 {', '.join(next_sectors[:2])}입니다."
-    return view
+        judgment += f" 다음 순환 후보는 {', '.join(next_sectors[:2])}입니다."
+    return f"{evidence}\n\n{price_check}\n\n{judgment}"
 
 
 def build_message(snapshot: dict) -> str:
