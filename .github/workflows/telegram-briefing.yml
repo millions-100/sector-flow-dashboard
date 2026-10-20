@@ -2,6 +2,11 @@ name: Send Telegram Sector Briefing
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/telegram-briefing.yml"
   schedule:
     # 매일 오전 8시 30분 KST = 전날 오후 11시 30분 UTC
     - cron: "30 23 * * *"
