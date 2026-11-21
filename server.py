@@ -611,6 +611,30 @@ def period_return(history: list[dict], sessions: int) -> float:
     return round((latest / previous - 1) * 100, 2) if previous else 0.0
 
 
+def previous_similar_price(quote: dict, tolerance: float = 0.0075) -> dict:
+    """Find the latest earlier close near today's close, falling back to the closest 1y close."""
+    history = quote.get("history") or []
+    if len(history) < 2:
+        return {}
+    current = float(quote.get("price") or history[-1]["close"])
+    latest_date = datetime.strptime(history[-1]["date"], "%Y-%m-%d").date()
+    candidates = []
+    for index, bar in enumerate(history[:-1]):
+        close = float(bar["close"])
+        difference = abs(close / current - 1) if current else 0
+        candidates.append((index, bar, difference))
+    nearby = [row for row in candidates if row[2] <= tolerance]
+    index, bar, difference = nearby[-1] if nearby else min(candidates, key=lambda row: row[2])
+    matched_date = datetime.strptime(bar["date"], "%Y-%m-%d").date()
+    return {
+        "date": bar["date"],
+        "close": round(float(bar["close"]), 2),
+        "daysAgo": (latest_date - matched_date).days,
+        "sessionsAgo": len(history) - 1 - index,
+        "differenceRate": round((float(bar["close"]) / current - 1) * 100, 2) if current else 0.0,
+    }
+
+
 def build_instrument_summary(quote: dict) -> dict:
     """Technical snapshot for QQQ/QLD with one practical interest range."""
     history = quote.get("history") or []
@@ -1091,6 +1115,10 @@ def build_us_payload() -> dict:
         "breadth": {
             "advancing": advancing_sectors,
             "total": len(latest_day["sectors"]),
+        },
+        "previousSimilarPrice": {
+            "sp500": previous_similar_price(sp_500_index),
+            "nasdaq100": previous_similar_price(nasdaq_100),
         },
     }
     outlook = {

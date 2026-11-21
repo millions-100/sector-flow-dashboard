@@ -277,6 +277,46 @@ def market_news_reason(article: dict) -> str:
     return "미국 주식의 위험선호와 주요 지수 방향에 영향을 줄 수 있는 뉴스입니다."
 
 
+def market_news_brief(article: dict) -> tuple[str, str]:
+    title = article.get("title", "").lower()
+    falling = any(word in title for word in ("fall", "fell", "drop", "lower", "slip", "plunge", "sell-off", "correction", "losing"))
+    rising = any(word in title for word in ("rise", "rose", "higher", "jump", "surge", "rebound", "rally"))
+    if any(word in title for word in ("treasury", "yield", "bond")):
+        if falling:
+            return "미 국채금리 하락", "국채금리 하락으로 나스닥 성장주의 할인율 부담이 완화되는 흐름입니다."
+        if rising:
+            return "미 국채금리 상승", "국채금리 상승이 고평가 성장주와 QQQ에 부담을 주는 흐름입니다."
+        return "미 국채금리 변화", "국채금리 방향이 QQQ·QLD의 밸류에이션에 영향을 주는 내용입니다."
+    if any(word in title for word in ("nvidia", "semiconductor", "chip", "ai")):
+        if falling:
+            return "AI·반도체 약세", "엔비디아와 반도체 약세가 나스닥100의 변동성을 키우는 내용입니다."
+        return "AI·반도체 흐름", "엔비디아와 AI 반도체 흐름이 나스닥100 방향을 좌우한다는 내용입니다."
+    if any(word in title for word in ("s&p 500", "nasdaq", "stock market", "stock markets")):
+        if falling:
+            return "미국 증시 조정 확대", "S&P 500과 나스닥의 하락이 이어지며 위험회피가 강해졌다는 내용입니다."
+        if rising:
+            return "미국 증시 반등", "S&P 500과 나스닥의 반등으로 위험선호가 회복되는 내용입니다."
+        return "미국 증시 방향 점검", "S&P 500과 나스닥의 수급·추세를 다룬 주요 시장 뉴스입니다."
+    if any(word in title for word in ("fed", "rate", "powell", "inflation", "cpi")):
+        return "연준·물가·금리", "연준의 금리 경로 기대가 바뀌며 QQQ·QLD의 할인율에 영향을 주는 내용입니다."
+    if any(word in title for word in ("jobs", "payroll", "employment", "unemployment")):
+        return "미국 고용지표", "고용 흐름이 경기와 연준의 금리 판단을 바꿀 수 있다는 내용입니다."
+    if any(word in title for word in ("earnings", "revenue", "profit", "guidance")):
+        return "빅테크 실적", "실적과 가이던스가 나스닥100의 이익 전망에 영향을 주는 내용입니다."
+    if any(word in title for word in ("tariff", "trade", "china", "war")):
+        return "무역·관세 변수", "무역정책 변화가 빅테크 공급망과 위험선호에 영향을 주는 내용입니다."
+    return "미국시장 주요 변수", market_news_reason(article)
+
+
+def similar_price_line(label: str, return_rate: float, item: dict) -> str | None:
+    if float(return_rate or 0) >= 0 or not item:
+        return None
+    return (
+        f"  ↳ 비슷한 종가: {item.get('date', '-')} {float(item.get('close') or 0):,.2f}"
+        f" · {item.get('daysAgo', '-')}일 전"
+    )
+
+
 def instrument_lines(label: str, item: dict) -> list[str]:
     if not item or item.get("error"):
         return [f"• {label}: 최신 데이터 확인 중"]
@@ -331,6 +371,9 @@ def build_message(snapshot: dict) -> str:
     vix = pulse.get("vix", {})
     treasury = pulse.get("treasury10y", {})
     market_state, qld_action = market_judgment(pulse)
+    similar_prices = pulse.get("previousSimilarPrice", {})
+    sp_return = float(market.get("returnRate") or 0)
+    nasdaq_return = float(nasdaq.get("returnRate") or 0)
 
     lines = [
         "🇺🇸 미국시장 마감 브리핑",
@@ -338,12 +381,22 @@ def build_message(snapshot: dict) -> str:
         f"시장 기준: {date} 미국 종가{stale_note}",
         "",
         "시장 한눈에 보기",
-        f"• S&P 500 {market.get('close', '-')} · {signed(market.get('returnRate', 0))}",
-        f"• NASDAQ 100 {nasdaq.get('close', '-')} · {signed(nasdaq.get('returnRate', 0))}",
+        f"• S&P 500 {market.get('close', '-')} · {signed(sp_return)}",
+    ]
+    sp_history_line = similar_price_line("S&P 500", sp_return, similar_prices.get("sp500", {}))
+    if sp_history_line:
+        lines.append(sp_history_line)
+    lines.append(f"• NASDAQ 100 {nasdaq.get('close', '-')} · {signed(nasdaq_return)}")
+    nasdaq_history_line = similar_price_line("NASDAQ 100", nasdaq_return, similar_prices.get("nasdaq100", {}))
+    if nasdaq_history_line:
+        lines.append(nasdaq_history_line)
+    lines.extend(
+        [
         f"• 상승 섹터 {advancing}/{total} · 시장 상태: {market_state}",
         "",
         "QQQ · QLD 기술 상태",
-    ]
+        ]
+    )
     lines.extend(instrument_lines("QQQ", pulse.get("qqq", {})))
     lines.append("")
     lines.extend(instrument_lines("QLD", pulse.get("qld", {})))
@@ -358,19 +411,31 @@ def build_message(snapshot: dict) -> str:
         ]
     )
 
-    news = sorted(
+    ranked_news_items = sorted(
         us.get("marketNews", []),
         key=lambda article: (market_news_score(article), article.get("publishedAt", "")),
         reverse=True,
-    )[:3]
+    )
+    news = []
+    seen_topics = set()
+    for article in ranked_news_items:
+        topic, _ = market_news_brief(article)
+        if topic in seen_topics:
+            continue
+        seen_topics.add(topic)
+        news.append(article)
+        if len(news) == 3:
+            break
     if news:
         for index, article in enumerate(news, 1):
             score = market_news_score(article)
+            brief_title, brief_summary = market_news_brief(article)
+            short_date = article.get("date", "-")[5:].replace("-", "/") if len(article.get("date", "")) >= 10 else article.get("date", "-")
             lines.extend(
                 [
-                    f"{index}. [{importance_label(score)} {score}] {clean_title(article, 88)}",
-                    f"   {article.get('source', '-')} · {article.get('date', '-')}",
-                    f"   → {market_news_reason(article)}",
+                    f"{index}. [{importance_label(score)}] {brief_title}",
+                    f"   {brief_summary}",
+                    f"   {article.get('source', '-')} · {short_date}",
                     "",
                 ]
             )
