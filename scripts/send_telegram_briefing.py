@@ -327,17 +327,37 @@ def market_news_watchpoint(article: dict) -> str:
     return "확인: VIX·국채금리·시장 상승 종목 수가 같은 방향인지 봅니다."
 
 
-def similar_price_line(label: str, return_rate: float, item: dict) -> str | None:
-    if float(return_rate or 0) >= 0 or not item:
-        return None
+def combined_news_summary(news: list[dict]) -> list[str]:
+    summaries = []
+    topics = []
+    for article in news[:3]:
+        topic, summary = market_news_brief(article)
+        topics.append(topic)
+        summaries.append(f"• {summary}")
+    negative = any("조정" in topic or "약세" in topic or "상승" in topic for topic in topics)
+    supportive = any("하락" in topic or "반등" in topic for topic in topics)
+    if negative and supportive:
+        conclusion = "• 종합: 금리 부담 완화보다 증시·반도체 약세가 강해 아직 위험회피가 우세합니다."
+    elif negative:
+        conclusion = "• 종합: 지수와 성장주 약세가 함께 나타나 변동성 진정을 먼저 확인해야 합니다."
+    elif supportive:
+        conclusion = "• 종합: 금리와 지수 흐름은 우호적이며 QQQ의 추세 유지 여부가 핵심입니다."
+    else:
+        conclusion = "• 종합: VIX와 미국 10년물 방향이 QQQ·QLD의 다음 움직임을 결정할 가능성이 큽니다."
+    return [*summaries, conclusion]
+
+
+def similar_price_lines(return_rate: float, item: dict, *, always: bool = False, label: str = "비슷한 종가") -> list[str]:
+    if (not always and float(return_rate or 0) >= 0) or not item:
+        return []
     try:
         short_date = datetime.strptime(item.get("date", ""), "%Y-%m-%d").strftime("%y/%m/%d")
     except ValueError:
         short_date = item.get("date", "-")
-    return (
-        f"  ↳ 비슷한 종가: {short_date} {float(item.get('close') or 0):,.2f}"
-        f" · {item.get('daysAgo', '-')}일 전"
-    )
+    return [
+        f"  ↳ {label}: {short_date} · {float(item.get('close') or 0):,.2f}",
+        f"     경과: {item.get('daysAgo', '-')}일 전",
+    ]
 
 
 def instrument_lines(label: str, item: dict) -> list[str]:
@@ -388,12 +408,8 @@ def build_message(snapshot: dict) -> str:
         stale_note = " · 미국 휴장/최근 거래일 기준" if (now_dt.date() - market_date).days >= 4 else ""
     except ValueError:
         stale_note = ""
-    breadth = pulse.get("breadth", {})
-    advancing = breadth.get("advancing", "-")
-    total = breadth.get("total", "-")
     vix = pulse.get("vix", {})
     treasury = pulse.get("treasury10y", {})
-    market_state, _ = market_judgment(pulse)
     similar_prices = pulse.get("previousSimilarPrice", {})
     sp_return = float(market.get("returnRate") or 0)
     nasdaq_return = float(nasdaq.get("returnRate") or 0)
@@ -406,16 +422,11 @@ def build_message(snapshot: dict) -> str:
         "시장 한눈에 보기",
         f"• S&P 500 {market.get('close', '-')} · {signed(sp_return)}",
     ]
-    sp_history_line = similar_price_line("S&P 500", sp_return, similar_prices.get("sp500", {}))
-    if sp_history_line:
-        lines.append(sp_history_line)
+    lines.extend(similar_price_lines(sp_return, similar_prices.get("sp500", {})))
     lines.append(f"• NASDAQ 100 {nasdaq.get('close', '-')} · {signed(nasdaq_return)}")
-    nasdaq_history_line = similar_price_line("NASDAQ 100", nasdaq_return, similar_prices.get("nasdaq100", {}))
-    if nasdaq_history_line:
-        lines.append(nasdaq_history_line)
+    lines.extend(similar_price_lines(nasdaq_return, similar_prices.get("nasdaq100", {})))
     lines.extend(
         [
-        f"• 상승 섹터 {advancing}/{total} · 시장 상태: {market_state}",
         "",
         "QQQ · QLD 기술 상태",
         ]
@@ -428,9 +439,14 @@ def build_message(snapshot: dict) -> str:
             "",
             "공포·금리",
             f"• VIX {vix.get('value', '-')} · {signed(vix.get('returnRate', 0))} · {vix.get('state', '확인 중')}",
+        ]
+    )
+    lines.extend(similar_price_lines(vix.get("returnRate", 0), similar_prices.get("vix", {}), always=True, label="비슷한 VIX"))
+    lines.extend(
+        [
             f"• 미국 10년물 {treasury.get('value', '-')}% · 전일 대비 {float(treasury.get('basisPointChange') or 0):+.1f}bp",
             "",
-            "중요 뉴스 3건",
+            "중요 뉴스 종합",
         ]
     )
 
@@ -450,18 +466,9 @@ def build_message(snapshot: dict) -> str:
         if len(news) == 3:
             break
     if news:
-        for index, article in enumerate(news, 1):
-            _, brief_summary = market_news_brief(article)
-            lines.extend(
-                [
-                    f"{index}) {brief_summary}",
-                    f"   영향: {market_news_reason(article)}",
-                    f"   {market_news_watchpoint(article)}",
-                    "",
-                ]
-            )
+        lines.extend(combined_news_summary(news))
     else:
-        lines.extend(["• 신규 주요 뉴스 확인 중", ""])
+        lines.append("• 신규 주요 뉴스 확인 중")
     while lines and not lines[-1]:
         lines.pop()
     return "\n".join(lines)

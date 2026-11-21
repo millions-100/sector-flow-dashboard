@@ -1126,6 +1126,7 @@ def build_us_payload() -> dict:
         "previousSimilarPrice": {
             "sp500": previous_similar_price(sp_500_index),
             "nasdaq100": previous_similar_price(nasdaq_100),
+            "vix": previous_similar_price(vix, tolerance=0.15),
         },
     }
     outlook = {
