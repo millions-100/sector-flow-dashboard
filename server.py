@@ -603,6 +603,94 @@ def make_entry(quote: dict, sector_return: float, benchmark_return: float, curre
     }
 
 
+def period_return(history: list[dict], sessions: int) -> float:
+    if len(history) <= sessions:
+        return 0.0
+    latest = float(history[-1]["close"])
+    previous = float(history[-sessions - 1]["close"])
+    return round((latest / previous - 1) * 100, 2) if previous else 0.0
+
+
+def build_instrument_summary(quote: dict) -> dict:
+    """Technical snapshot for QQQ/QLD with one practical interest range."""
+    history = quote.get("history") or []
+    closes = [float(bar["close"]) for bar in history if bar.get("close") is not None]
+    if not closes:
+        return {"code": quote.get("code", ""), "error": "history unavailable"}
+    close = float(quote.get("price") or closes[-1])
+    ema20 = ema(closes, 20)
+    ema50 = ema(closes, 50)
+    ema200 = ema(closes, 200)
+    rsi14 = rsi(closes, 14)
+    atr14 = max(atr(history, 14), close * 0.006)
+    last20 = history[-20:]
+    volume_sum = sum(float(bar.get("volume") or 0) for bar in last20)
+    vwap20 = (
+        sum(
+            ((float(bar["high"]) + float(bar["low"]) + float(bar["close"])) / 3)
+            * float(bar.get("volume") or 0)
+            for bar in last20
+        )
+        / volume_sum
+        if volume_sum
+        else sum(float(bar["close"]) for bar in last20) / len(last20)
+    )
+    fair_mid = ema20 * 0.55 + vwap20 * 0.45
+    fair_width = max(atr14 * 0.45, fair_mid * 0.006)
+    fair_low = max(0.01, fair_mid - fair_width)
+    fair_high = fair_mid + fair_width
+    in_range = fair_low <= close <= fair_high
+    if in_range:
+        interest_status = "관심 구간 진입"
+        distance = 0.0
+    elif close > fair_high:
+        distance = (close / fair_high - 1) * 100
+        interest_status = f"관심 구간까지 약 {distance:.1f}% 조정 대기"
+    else:
+        distance = (close / fair_low - 1) * 100
+        interest_status = "관심 구간 아래 · 추세 회복 확인"
+    rsi_label = (
+        "과열"
+        if rsi14 >= 70
+        else "강세"
+        if rsi14 >= 60
+        else "중립"
+        if rsi14 >= 45
+        else "조정"
+        if rsi14 >= 35
+        else "과매도"
+    )
+    trend = (
+        "상승 추세"
+        if close >= ema20 >= ema50
+        else "장기 추세 유지"
+        if close >= ema50
+        else "추세 회복 필요"
+    )
+    rolling_high = max(closes[-252:])
+    drawdown = (close / rolling_high - 1) * 100 if rolling_high else 0.0
+    return {
+        "code": quote.get("code", ""),
+        "name": quote.get("name", quote.get("code", "")),
+        "date": quote.get("date", history[-1].get("date", "")),
+        "price": round(close, 2),
+        "returnRate": round(float(quote.get("returnRate") or history[-1].get("returnRate") or 0), 2),
+        "weekReturn": period_return(history, 5),
+        "monthReturn": period_return(history, 21),
+        "rsi": round(rsi14, 1),
+        "rsiLabel": rsi_label,
+        "ema20": round(ema20, 2),
+        "ema50": round(ema50, 2),
+        "ema200": round(ema200, 2),
+        "fairRange": usd_range(fair_low, fair_high),
+        "isInFairRange": in_range,
+        "fairPriceDistance": round(distance, 1),
+        "interestStatus": interest_status,
+        "trend": trend,
+        "drawdown": round(drawdown, 1),
+    }
+
+
 def build_technical_entries(sectors: list[dict], quotes: dict[str, dict], benchmark_return: float, currency: str = "KRW") -> dict[str, list[dict]]:
     technical_entries = {}
     for sector in sectors:
@@ -776,15 +864,76 @@ def fetch_us_news(sector: str, etf: str, limit: int = 2) -> list[dict]:
     return items[:limit]
 
 
+def fetch_us_market_news(limit: int = 18) -> list[dict]:
+    """Fetch broad US market headlines for the morning Telegram briefing."""
+    queries = (
+        '"S&P 500" Nasdaq stock market when:3d',
+        'Federal Reserve inflation jobs "Treasury yields" when:3d',
+        'Nvidia Apple Microsoft earnings AI stocks when:3d',
+    )
+    roots = []
+    for raw_query in queries:
+        query = urllib.parse.quote(raw_query)
+        url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+        request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        try:
+            with urllib.request.urlopen(request, timeout=8, context=SSL_CONTEXT) as response:
+                roots.append(ET.fromstring(response.read()))
+        except Exception:
+            continue
+    items = []
+    for root in roots:
+        for item in root.findall("./channel/item")[:20]:
+            title = clean_text(item.findtext("title", ""))
+            source = clean_text(item.findtext("source", "")) or "Google News"
+            published = item.findtext("pubDate", "")
+            try:
+                published_at = parsedate_to_datetime(published)
+                date = published_at.strftime("%Y-%m-%d")
+                published_at_iso = published_at.isoformat(timespec="minutes")
+                sort_key = published_at.timestamp()
+            except (TypeError, ValueError):
+                date = published[:16]
+                published_at_iso = published
+                sort_key = 0
+            items.append(
+                {
+                    "date": date,
+                    "publishedAt": published_at_iso,
+                    "source": source,
+                    "title": title,
+                    "url": item.findtext("link", "#"),
+                    "_sort": sort_key,
+                }
+            )
+    items.sort(key=lambda row: row["_sort"], reverse=True)
+    seen = set()
+    unique = []
+    for item in items:
+        normalized = re.sub(r"\W+", " ", item["title"].lower()).strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        item.pop("_sort", None)
+        unique.append(item)
+        if len(unique) == limit:
+            break
+    return unique
+
+
 def build_us_payload() -> dict:
-    tickers = {"SPY", "^GSPC", "^NDX"}
+    core_tickers = {"SPY", "^GSPC", "^NDX", "QQQ", "QLD", "^VIX", "^TNX"}
+    tickers = set(core_tickers)
     for config in US_SECTORS.values():
         tickers.add(config["etf"])
         tickers.update(code for code, _ in config["stocks"])
 
     charts: dict[str, dict] = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
-        futures = {pool.submit(fetch_yahoo_chart, ticker): ticker for ticker in tickers}
+        futures = {
+            pool.submit(fetch_yahoo_chart, ticker, "1y" if ticker in core_tickers else "6mo"): ticker
+            for ticker in tickers
+        }
         for future in concurrent.futures.as_completed(futures):
             ticker = futures[future]
             try:
@@ -798,6 +947,10 @@ def build_us_payload() -> dict:
         raise RuntimeError("S&P 500 benchmark data is unavailable")
     sp_500_index = charts.get("^GSPC", {})
     nasdaq_100 = charts.get("^NDX", {})
+    qqq = charts.get("QQQ", {})
+    qld = charts.get("QLD", {})
+    vix = charts.get("^VIX", {})
+    treasury_10y = charts.get("^TNX", {})
 
     return_maps = {
         ticker: {bar["date"]: bar for bar in chart.get("history", [])}
@@ -848,6 +1001,10 @@ def build_us_payload() -> dict:
                 news[name] = future.result()
             except Exception:
                 news[name] = []
+    try:
+        market_news = fetch_us_market_news()
+    except Exception:
+        market_news = []
 
     weakest = latest_day["sectors"][-1]
     stage_rows = [(weakest, "탄력 둔화"), (latest_day["sectors"][0], "현재 주도"), (latest_day["sectors"][1], "확산 중"), (latest_day["sectors"][2], "다음 후보")]
@@ -891,6 +1048,51 @@ def build_us_payload() -> dict:
     sp_500_latest = (sp_500_index.get("history") or [{}])[-1]
     nasdaq_latest = (nasdaq_100.get("history") or [{}])[-1]
     technical_entries = build_technical_entries(latest_day["sectors"], charts, latest_day["kospi"], "USD")
+    qqq_summary = build_instrument_summary(qqq) if qqq.get("history") else {"code": "QQQ", "error": "unavailable"}
+    qld_summary = build_instrument_summary(qld) if qld.get("history") else {"code": "QLD", "error": "unavailable"}
+    vix_price = float(vix.get("price") or 0)
+    treasury_history = treasury_10y.get("history") or []
+    treasury_previous = (
+        float(treasury_history[-2]["close"])
+        if len(treasury_history) > 1
+        else float(treasury_10y.get("previousClose") or 0)
+    )
+    vix_state = (
+        "높은 공포"
+        if vix_price >= 30
+        else "공포 확대"
+        if vix_price >= 25
+        else "경계"
+        if vix_price >= 20
+        else "보통"
+        if vix_price >= 15
+        else "안정"
+    )
+    advancing_sectors = sum(1 for row in latest_day["sectors"] if row.get("returnRate", 0) > 0)
+    market_pulse = {
+        "date": latest_date,
+        "qqq": qqq_summary,
+        "qld": qld_summary,
+        "vix": {
+            "date": vix.get("date", latest_date),
+            "value": round(vix_price, 2),
+            "returnRate": round(float(vix.get("returnRate") or 0), 2),
+            "state": vix_state,
+        },
+        "treasury10y": {
+            "date": treasury_10y.get("date", latest_date),
+            "value": round(float(treasury_10y.get("price") or 0), 3),
+            "returnRate": round(float(treasury_10y.get("returnRate") or 0), 2),
+            "basisPointChange": round(
+                (float(treasury_10y.get("price") or 0) - treasury_previous) * 100,
+                1,
+            ),
+        },
+        "breadth": {
+            "advancing": advancing_sectors,
+            "total": len(latest_day["sectors"]),
+        },
+    }
     outlook = {
         "asOf": f"{latest_date} 16:00 ET",
         "market": {
@@ -933,6 +1135,8 @@ def build_us_payload() -> dict:
         "quotes": quotes,
         "technicalEntries": technical_entries,
         "news": news,
+        "marketNews": market_news,
+        "marketPulse": market_pulse,
         "outlook": outlook,
     }
 
@@ -978,16 +1182,20 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3 and sys.argv[1] == "--snapshot":
+    if len(sys.argv) == 3 and sys.argv[1] in {"--snapshot", "--us-snapshot"}:
         destination = Path(sys.argv[2]).resolve()
         destination.parent.mkdir(parents=True, exist_ok=True)
-        kr_snapshot = build_kr_payload()
         us_snapshot = build_us_payload()
-        kr_snapshot["snapshot"] = True
         us_snapshot["snapshot"] = True
-        snapshot = {"ok": True, "snapshot": True, "markets": {"kr": kr_snapshot, "us": us_snapshot}}
+        markets = {"us": us_snapshot}
+        if sys.argv[1] == "--snapshot":
+            kr_snapshot = build_kr_payload()
+            kr_snapshot["snapshot"] = True
+            markets["kr"] = kr_snapshot
+        snapshot = {"ok": True, "snapshot": True, "markets": markets}
         destination.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
-        print(f"Latest KR/US market snapshot: {destination}")
+        label = "US" if sys.argv[1] == "--us-snapshot" else "KR/US"
+        print(f"Latest {label} market snapshot: {destination}")
     else:
         print(f"Sector Flow: http://localhost:{PORT}")
         print("페이지를 열 때마다 최신 공개 시세와 뉴스를 확인합니다. 종료: Ctrl+C")

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and send the daily sector-flow briefing to a private Telegram chat."""
+"""Build and send the daily US-market briefing to a private Telegram chat."""
 
 from __future__ import annotations
 
@@ -14,7 +14,6 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 
-DASHBOARD_URL = "https://millions-100.github.io/sector-flow-dashboard/"
 SEOUL = ZoneInfo("Asia/Seoul")
 TRUSTED_SOURCES = (
     "연합뉴스",
@@ -243,73 +242,149 @@ def daily_comment(news: list[dict], kr: dict, us: dict) -> str:
     return f"{evidence}\n\n{price_check}\n\n{judgment}"
 
 
-def build_message(snapshot: dict) -> str:
-    markets = snapshot.get("markets", {})
-    kr = markets.get("kr", {})
-    us = markets.get("us", {})
-    now = datetime.now(SEOUL).strftime("%Y-%m-%d %H:%M KST")
-    kr_market = kr.get("outlook", {}).get("market", {})
-    us_market = us.get("outlook", {}).get("market", {})
-    us_day = us.get("marketDay", {})
-    nasdaq_100 = us_market.get("nasdaq100", {})
-    kr_focus = kr.get("outlook", {}).get("focus", {})
-    us_focus = us.get("outlook", {}).get("focus", {})
+def market_news_score(article: dict) -> int:
+    text = f"{article.get('source', '')} {article.get('title', '')}".lower()
+    score = 42
+    trusted = ("reuters", "bloomberg", "associated press", "federal reserve", "cnbc", "wall street journal", "wsj")
+    mainstream = ("yahoo finance", "financial times", "marketwatch", "barron's", "nbc news", "fox business", "fortune")
+    direct = ("rate", "inflation", "cpi", "jobs", "payroll", "treasury", "earnings", "guidance", "tariff", "nvidia")
+    broad = ("s&p 500", "nasdaq", "stock market", "stock markets", "yield", "recession", "sell-off", "correction", "ai")
+    irrelevant = ("college", "challenge winners", "scholarship", "community event", "sports", "lottery")
+    is_trusted = any(word in text for word in trusted)
+    is_mainstream = any(word in text for word in mainstream)
+    score += 20 if is_trusted else 10 if is_mainstream else 0
+    score += 24 if any(word in text for word in direct) else 14 if any(word in text for word in broad) else 0
+    score -= 40 if any(word in text for word in irrelevant) else 0
+    if not is_trusted and not is_mainstream:
+        score = min(score, 60)
+    return max(20, min(95, score))
 
-    lines = [
-        "📊 오늘의 섹터 핵심 브리핑",
-        f"기준 시각: {now}",
-        "",
-        "핵심 판단",
-        f"• 한국: {kr_focus.get('sector', '확인 중')} · {kr_focus.get('status', '-')} · {kr_focus.get('score', '-')}점",
-        f"• 미국: {us_focus.get('sector', '확인 중')} · {us_focus.get('status', '-')} · {us_focus.get('score', '-')}점",
-        "",
-        "시장 배경",
-        dated_index_line("KOSPI", kr_market.get("close", "-"), kr_market.get("returnRate", 0), kr.get("marketDay", {}).get("date", "")),
-        "",
-        dated_index_line("S&P 500", us_market.get("close", "-"), us_market.get("returnRate", us_day.get("kospi", 0)), us_market.get("date", us_day.get("date", ""))),
-        "",
-        dated_index_line("NASDAQ 100", nasdaq_100.get("close", "-"), nasdaq_100.get("returnRate", 0), nasdaq_100.get("date", us_day.get("date", ""))),
-        "",
-        "중요 뉴스 요약",
+
+def market_news_reason(article: dict) -> str:
+    title = article.get("title", "").lower()
+    if any(word in title for word in ("fed", "rate", "powell", "inflation", "cpi")):
+        return "금리 기대와 성장주 할인율을 바꿔 QQQ·QLD에 직접 영향을 줄 수 있습니다."
+    if any(word in title for word in ("jobs", "payroll", "employment", "unemployment")):
+        return "고용 강도는 연준의 금리 경로와 경기 연착륙 기대를 동시에 바꿀 수 있습니다."
+    if any(word in title for word in ("treasury", "yield", "bond")):
+        return "국채금리 변화는 밸류에이션이 높은 나스닥 대형주의 부담 또는 완화 요인입니다."
+    if any(word in title for word in ("nvidia", "ai", "semiconductor", "chip")):
+        return "AI·반도체 비중이 큰 나스닥100의 실적 기대와 자금 흐름에 연결됩니다."
+    if any(word in title for word in ("earnings", "revenue", "profit", "guidance")):
+        return "실적과 가이던스가 지수 이익 전망을 바꾸는 재료입니다."
+    if any(word in title for word in ("tariff", "trade", "china", "war")):
+        return "관세·무역 변수는 빅테크 공급망과 위험선호에 영향을 줄 수 있습니다."
+    return "미국 주식의 위험선호와 주요 지수 방향에 영향을 줄 수 있는 뉴스입니다."
+
+
+def instrument_lines(label: str, item: dict) -> list[str]:
+    if not item or item.get("error"):
+        return [f"• {label}: 최신 데이터 확인 중"]
+    return [
+        f"• {label} ${item.get('price', 0):,.2f} · {signed(item.get('returnRate', 0))}",
+        f"  RSI {item.get('rsi', '-')} ({item.get('rsiLabel', '-')}) · {item.get('trend', '-')}",
+        f"  관심 가격 {item.get('fairRange', '-')} · {item.get('interestStatus', '-')}",
+        f"  1주 {signed(item.get('weekReturn', 0))} · 1개월 {signed(item.get('monthReturn', 0))} · 고점 대비 {signed(item.get('drawdown', 0))}",
     ]
 
-    news = ranked_news(markets)
-    if news:
-        for index, article in enumerate(news[:3]):
-            score = article["importance"]
-            if index:
-                lines.append("")
-            lines.append(
-                f"• [{importance_label(score)} {score}] {article['sector']} — {clean_title(article)}"
-            )
+
+def market_judgment(pulse: dict) -> tuple[str, str]:
+    qqq = pulse.get("qqq", {})
+    qld = pulse.get("qld", {})
+    vix = pulse.get("vix", {})
+    qqq_rsi = float(qqq.get("rsi") or 50)
+    vix_value = float(vix.get("value") or 0)
+    if vix_value >= 25 or qqq.get("trend") == "추세 회복 필요":
+        market_state = "위험관리 우선"
+    elif qqq_rsi >= 70:
+        market_state = "상승 추세지만 단기 과열"
+    elif qqq.get("trend") == "상승 추세" and vix_value < 20:
+        market_state = "상승 추세 유지"
     else:
-        lines.append("• 최근 공개 뉴스가 없어 시장 흐름만 표시합니다.")
+        market_state = "중립 · 방향 확인"
 
-    lines.extend(["", "오늘 집중할 섹터"])
-    lines.extend(rotation_lines(kr, ("현재 주도", "확산 중")) or ["• 한국: 신호 확인 중"])
-    lines.extend(rotation_lines(us, ("현재 주도", "확산 중")) or ["• 미국: 신호 확인 중"])
+    if qld.get("isInFairRange") and market_state == "상승 추세 유지":
+        qld_action = "QLD는 기술적 관심 구간 안에서 분할 관찰"
+    elif float(qld.get("fairPriceDistance") or 0) > 0:
+        qld_action = "QLD는 추격보다 표시된 관심 가격까지 조정 대기"
+    else:
+        qld_action = "QLD는 QQQ 추세 회복을 확인한 뒤 관찰"
+    return market_state, qld_action
 
-    lines.extend(["", "앞으로 관심 가질 섹터"])
-    lines.extend(rotation_lines(kr, ("다음 후보",)) or ["• 한국: 다음 후보 확인 중"])
-    lines.extend(rotation_lines(us, ("다음 후보",)) or ["• 미국: 다음 후보 확인 중"])
 
-    lines.extend(["", "한국 관심 주식 · 우선순위"])
-    extend_spaced(lines, stock_lines(kr) or ["• 최신 가격 확인 중"])
-    lines.extend(["", "미국 관심 주식 · 우선순위"])
-    extend_spaced(lines, stock_lines(us) or ["• 최신 가격 확인 중"])
+def build_message(snapshot: dict) -> str:
+    us = snapshot.get("markets", {}).get("us", {})
+    pulse = us.get("marketPulse", {})
+    market = us.get("outlook", {}).get("market", {})
+    nasdaq = market.get("nasdaq100", {})
+    date = pulse.get("date") or us.get("marketDay", {}).get("date", "기준일 확인 중")
+    now_dt = datetime.now(SEOUL)
+    now = now_dt.strftime("%Y-%m-%d %H:%M KST")
+    try:
+        market_date = datetime.strptime(date, "%Y-%m-%d").date()
+        stale_note = " · 미국 휴장/최근 거래일 기준" if (now_dt.date() - market_date).days >= 4 else ""
+    except ValueError:
+        stale_note = ""
+    breadth = pulse.get("breadth", {})
+    advancing = breadth.get("advancing", "-")
+    total = breadth.get("total", "-")
+    vix = pulse.get("vix", {})
+    treasury = pulse.get("treasury10y", {})
+    market_state, qld_action = market_judgment(pulse)
 
-    us_sectors = us.get("marketDay", {}).get("sectors", [])
-    leader = us_sectors[0].get("name", "확인 중") if us_sectors else "확인 중"
-    laggard = us_sectors[-1].get("name", "확인 중") if us_sectors else "확인 중"
+    lines = [
+        "🇺🇸 미국시장 마감 브리핑",
+        f"작성 시각: {now}",
+        f"시장 기준: {date} 미국 종가{stale_note}",
+        "",
+        "시장 한눈에 보기",
+        f"• S&P 500 {market.get('close', '-')} · {signed(market.get('returnRate', 0))}",
+        f"• NASDAQ 100 {nasdaq.get('close', '-')} · {signed(nasdaq.get('returnRate', 0))}",
+        f"• 상승 섹터 {advancing}/{total} · 시장 상태: {market_state}",
+        "",
+        "QQQ · QLD 기술 상태",
+    ]
+    lines.extend(instrument_lines("QQQ", pulse.get("qqq", {})))
+    lines.append("")
+    lines.extend(instrument_lines("QLD", pulse.get("qld", {})))
     lines.extend(
         [
             "",
-            f"한 줄 결론: 현재는 {leader}에 집중하고, {laggard}는 회복 신호 전까지 기다립니다.",
+            "공포·금리",
+            f"• VIX {vix.get('value', '-')} · {signed(vix.get('returnRate', 0))} · {vix.get('state', '확인 중')}",
+            f"• 미국 10년물 {treasury.get('value', '-')}% · 전일 대비 {float(treasury.get('basisPointChange') or 0):+.1f}bp",
             "",
-            f"대시보드: {DASHBOARD_URL}",
+            "중요 뉴스 3건",
+        ]
+    )
+
+    news = sorted(
+        us.get("marketNews", []),
+        key=lambda article: (market_news_score(article), article.get("publishedAt", "")),
+        reverse=True,
+    )[:3]
+    if news:
+        for index, article in enumerate(news, 1):
+            score = market_news_score(article)
+            lines.extend(
+                [
+                    f"{index}. [{importance_label(score)} {score}] {clean_title(article, 88)}",
+                    f"   {article.get('source', '-')} · {article.get('date', '-')}",
+                    f"   → {market_news_reason(article)}",
+                    "",
+                ]
+            )
+    else:
+        lines.extend(["• 신규 주요 뉴스 확인 중", ""])
+
+    lines.extend(
+        [
+            "오늘의 판단",
+            f"• 시장: {market_state}",
+            f"• QLD: {qld_action}",
+            f"• 핵심 가격: QQQ {pulse.get('qqq', {}).get('fairRange', '-')} · QLD {pulse.get('qld', {}).get('fairRange', '-')}",
             "",
-            "오늘의 한마디",
-            daily_comment(news[:3], kr, us),
+            f"오늘의 한마디: {qld_action}. VIX와 미국 10년물의 방향이 이를 지지하는지 함께 확인합니다.",
         ]
     )
     return "\n".join(lines)
