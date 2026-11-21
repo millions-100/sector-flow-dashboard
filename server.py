@@ -612,7 +612,7 @@ def period_return(history: list[dict], sessions: int) -> float:
 
 
 def previous_similar_price(quote: dict, tolerance: float = 0.0075) -> dict:
-    """Find the latest earlier close near today's close, falling back to the closest 1y close."""
+    """Find the most recent earlier close near today's close within the 1y history."""
     history = quote.get("history") or []
     if len(history) < 2:
         return {}
@@ -623,8 +623,15 @@ def previous_similar_price(quote: dict, tolerance: float = 0.0075) -> dict:
         close = float(bar["close"])
         difference = abs(close / current - 1) if current else 0
         candidates.append((index, bar, difference))
-    nearby = [row for row in candidates if row[2] <= tolerance]
-    index, bar, difference = nearby[-1] if nearby else min(candidates, key=lambda row: row[2])
+    match = None
+    for threshold in (tolerance, 0.015, 0.03, 0.05):
+        nearby = [row for row in candidates if row[2] <= threshold]
+        if nearby:
+            match = nearby[-1]
+            break
+    if match is None:
+        return {}
+    index, bar, difference = match
     matched_date = datetime.strptime(bar["date"], "%Y-%m-%d").date()
     return {
         "date": bar["date"],
